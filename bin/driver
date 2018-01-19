@@ -1,0 +1,201 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const FS = require('fs');
+const CommandLineArgs = require('command-line-args');
+const CommandLineUsage = require('command-line-usage');
+
+const Render = require('../lib/render');
+
+// Check files exist beforehand
+function FileDetails(filename) {
+    if (!(this instanceof FileDetails)) {
+        return new FileDetails(filename)
+    }
+
+    this.filename = filename
+    this.exists = FS.existsSync(filename)
+}
+
+function fileExists(input) {
+    if (input instanceof Array) {
+        input.forEach((i) => {
+            if (i instanceof FileDetails) {
+                if (!i.exists) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        })
+    } else if (input instanceof FileDetails) {
+        return input.exists;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+function concatFiles(filepaths) {
+    let file = '';
+
+    if (filepaths instanceof Array) {
+        filepaths.forEach((filepath) => {
+            file += FS.readFileSync(filepath, { encoding: 'utf8' });
+            file += '\n';
+        })
+    } else {
+        file += FS.readFileSync(filepaths, { encoding: 'utf8' });
+    }
+
+    return file;
+}
+
+// Init the command line interface.
+// Populate command line options.
+const optionDefinitions = [
+    {
+        name: 'inky',
+        alias: 'i',
+        type: Boolean,
+        description: 'Tells the render whether to pre-process Inky templates or not. Default is `false`.',
+        defaultValue: false
+    },
+    {
+        name: 'html',
+        type: FileDetails,
+        description: 'The path to the input html file you want to use.',
+        typeLabel: '<file>',
+        defaultOption: true
+    },
+    {
+        name: 'css',
+        type: FileDetails,
+        multiple: true,
+        description: 'The path to the input css file you want to use. Can contain multiple files delimited by a space.',
+        typeLabel: '<files>',
+        defaultValue: []
+    },
+    {
+        name: 'out',
+        alias: 'o',
+        type: FileDetails,
+        description: '[optional] The path to the output file you want to use. If not specified, results will be returned to STDOUT',
+        typeLabel: '<file>'
+    },
+    {
+        name: 'force',
+        alias: 'f',
+        type: Boolean,
+        description: 'Overrwrite the output file.',
+        defaultValue: false
+    },
+    {
+        name: 'help',
+        alias: 'h',
+        type: Boolean,
+        description: 'Shows this page.',
+        defaultValue: false
+    }
+];
+const options = CommandLineArgs(optionDefinitions)
+const usage = CommandLineUsage([
+    {
+        header: 'Command Line Tool for merging HTML and CSS to inline',
+        content: 'Prints the output to STDOUT so use `>` to write to a file. For example `./driver.js > out.html`'
+    },
+    {
+        header: 'Usage',
+        content: '--html and --css are REQUIRED, and the files must exist.\n--out must not exist. You can use --force/-f to overrwrite it if does.',
+    },
+    {
+        header: 'Example',
+        content: 'driver --html sample.html --css sample.css second.css --out out.html -f --inky && open out.html\n\nTakes an Inky HTML file, inlines the styles and opens the result in a browser'
+    },
+    {
+        header: 'Options',
+        optionList: optionDefinitions
+    },
+    {
+        content: 'Project home: [underline]{https://github.com/sabind/email-inliner-cli}'
+    }
+])
+
+if (options.help) {
+    console.log(usage);
+    process.exit(0);
+} else {
+    // Convert to render options
+    const linkCss = options.css.length ? false : true;
+    const renderOptions = {
+        inky: {
+            enabled: options.inky
+        },
+        juice: {
+            linkCss: linkCss // Link CSS if no CSS files given
+        }
+    }
+
+    if (!options.html) {
+        console.error('\x1b[31m', 'An HTML file is requiered.')
+
+        console.error('\x1b[0m')
+        console.error(usage);
+        process.exit(1);
+    }
+
+    if (!fileExists(options.html)) {
+        console.error('\x1b[31m', 'HTML file path references a file that does not exist.')
+
+        console.error('\x1b[0m')
+        console.error(usage);
+        process.exit(1);
+    }
+
+    if (!fileExists(options.css)) {
+        console.error('\x1b[31m', 'If not specifying "--link", CSS file(s) are required.')
+
+        console.error('\x1b[0m')
+        console.error(usage);
+        process.exit(1);
+    }
+
+    if (fileExists(options.out) && !options.force) {
+        console.error('\x1b[31m', 'Out file path references a file that does exist. Use `--force` or `-f` to overwrite');
+
+        console.error('\x1b[0m')
+        console.error(usage);
+        process.exit(1);
+    }
+
+    // Build the resources, but don't build css if we're linking
+    const htmlFile = concatFiles(options.html.filename);
+    const cssFile = linkCss ? null : concatFiles(options.css.map((fileDetails) => (fileDetails.filename)));
+
+    // Generate template and wait for the result.
+    let promise;
+
+    if (options.out) {
+        promise = Render(htmlFile, cssFile, renderOptions)
+            .then((htmlResult) => {
+                FS.writeFileSync(options.out.filename, htmlResult, { encoding: 'utf8' });
+            });
+    } else {
+        promise = Render(htmlFile, cssFile, renderOptions)
+            .then((htmlResult) => {
+                console.log(htmlResult);
+            });
+    }
+
+    // Wrap it all up.
+    promise
+        .then(() => {
+            process.exit(0);
+        })
+        .catch((err) => {
+            console.error('\x1b[31m', err);
+            process.exit(1);
+        })
+}

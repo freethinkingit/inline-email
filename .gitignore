@@ -1,0 +1,8 @@
+# Project Files
+
+/node_modules
+/.vscode
+
+# Sample Files for Testing
+/out
+/in
