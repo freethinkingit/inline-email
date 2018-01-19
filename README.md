@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/freethinking.it/inline-email.svg?branch=master)](https://travis-ci.org/freethinking.it/inline-email.svg)
-[![Dependency Status](https://david-dm.org/freethinkingit/inline-email.svg)](https://david-dm.org/freethinkingit/inline-email.svg)
+[![dependencies Status](https://david-dm.org/freethinkingit/inline-email/status.svg)](https://david-dm.org/freethinkingit/inline-email)
 
 # Inline Email - CLI
 
