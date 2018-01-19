@@ -35,7 +35,7 @@
     "url": "https://github.com/freethinkingit/inline-email/issues"
   },
   "homepage": "https://github.com/freethinkingit/inline-email#readme",
-  "env": {
-    "node": "6.12.3"
+  "engines": {
+    "node": ">= 6.12.3"
   }
 }
