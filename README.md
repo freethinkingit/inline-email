@@ -7,6 +7,10 @@ A CLI for converting HTML files to inline styled HTML suitable for emails.
 The CLI also supports Inky HTML-based templating using `--inky` as an argument.
 The CLI is designed to make working with ExactTarget, MailChimp, Emarsys, or any other email service easier if you're simply pasting the output into those systems.
 
+## Supported NodeJS Versions
+
+NodeJS 6.x -> 9.x are supported. Older NodeJS will not work with this package.
+
 ## What this does not do.
 
 `inline-email` does NOT check you're using email safe HTML tags.
