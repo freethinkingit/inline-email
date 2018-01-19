@@ -1,3 +1,5 @@
+[![view on npm](http://img.shields.io/npm/v/inline-email.svg)](https://www.npmjs.org/package/inline-email)
+[![npm module downloads](http://img.shields.io/npm/dt/inline-email.svg)](https://www.npmjs.com/package/inline-email)
 [![Build Status](https://travis-ci.org/freethinkingit/inline-email.svg?branch=master)](https://travis-ci.org/freethinkingit/inline-email)
 [![dependencies Status](https://david-dm.org/freethinkingit/inline-email/status.svg)](https://david-dm.org/freethinkingit/inline-email)
 
@@ -7,7 +9,9 @@ A CLI for converting HTML files to inline styled HTML suitable for emails.
 The CLI also supports Inky HTML-based templating using `--inky` as an argument.
 The CLI is designed to make working with ExactTarget, MailChimp, Emarsys, or any other email service easier if you're simply pasting the output into those systems.
 
-You're your curious to [learn about the tool's history](https://github.com/freethinkingit/inline-email/wiki/1.-How-The-Tool-Came-to-Be) or [see an example usage](https://github.com/freethinkingit/inline-email/wiki/2.-Building-Templates-and-Blocks) checkout the [Wiki](https://github.com/freethinkingit/inline-email/wiki). 
+You're your curious to [learn about the tool's history](https://github.com/freethinkingit/inline-email/wiki/1.-How-The-Tool-Came-to-Be) or [see an example usage](https://github.com/freethinkingit/inline-email/wiki/2.-Building-Templates-and-Blocks) checkout the [Wiki](https://github.com/freethinkingit/inline-email/wiki).
+
+> `inline-email` relies heavily on [Inky](https://github.com/zurb/inky) and [Juice](https://github.com/Automattic/juice). The CLI itself is built on top of [command-line-args](https://github.com/75lb/command-line-args) and [command-line-usage](https://github.com/75lb/command-line-usage). Many thanks to the maintainers of those projects.
 
 ## Supported NodeJS Versions
 
@@ -63,3 +67,7 @@ Want to contribute? [Follow these recommendations](CONTRIBUTING.md).
 ## License
 
 [MIT](LICENSE.md)
+
+---------------------------
+
+© 2018 Freethinking IT <hello@freethinking.it>
