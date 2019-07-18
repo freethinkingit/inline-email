@@ -86,7 +86,7 @@ const optionDefinitions = [
         typeLabel: '<file>'
     },
     {
-        name: 'nofetch',
+        name: 'noFetch',
         type: Boolean,
         description: 'Tells the render whether to fetch remote resources or not. Default is `false`.',
         defaultValue: false
@@ -141,7 +141,7 @@ if (options.help) {
         },
         juice: {
             linkCss: linkCss,// Link CSS if no CSS files given
-            nofetch: options.nofetch
+            noFetch: options.noFetch
         }
     }
 
