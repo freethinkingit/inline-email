@@ -3,6 +3,11 @@
 /node_modules
 /.vscode
 
+
 # Sample Files for Testing
 /out
 /in
+
+.DS_Store
+.idea
+inline-email.iml

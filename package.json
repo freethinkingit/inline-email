@@ -1,13 +1,13 @@
 {
   "name": "inline-email",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "CLI for Merging HTML and CSS to inline for emails. Supports Inky Templates.",
-  "main": "bin/driver",
+  "main": "bin/inline-email",
   "scripts": {
     "test": "node_modules/lab/bin/lab"
   },
   "bin": {
-    "inline-email": "bin/driver"
+    "inline-email": "bin/inline-email"
   },
   "author": "Dan Sabin <dan@freethinking.it>",
   "license": "MIT",
