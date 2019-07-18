@@ -86,9 +86,9 @@ const optionDefinitions = [
         typeLabel: '<file>'
     },
     {
-        name: 'noFetch',
+        name: 'noInlineImages',
         type: Boolean,
-        description: 'Tells the render whether to fetch remote resources or not. Default is `false`.',
+        description: 'Tells the render whether to inline images or not. Default is `false`.',
         defaultValue: false
     },
     {
@@ -141,7 +141,9 @@ if (options.help) {
         },
         juice: {
             linkCss: linkCss,// Link CSS if no CSS files given
-            noFetch: options.noFetch
+            webResources: {
+                images: !options.noInlineImages
+            }
         }
     }
 
