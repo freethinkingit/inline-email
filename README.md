@@ -16,7 +16,10 @@ You're your curious to [learn about the tool's history](https://github.com/freet
 
 ## Supported NodeJS Versions
 
-NodeJS 6.x -> 9.x are supported. Older NodeJS will not work with this package.
+Current 2.x version of `inline-email` are tested against NodeJS 8.x -> 12.x.
+The 2.x will work on version 6.x and 8.x, but the test runners no longer support these so validation is not guaranteed.
+
+Previous 1.x versions of `inline-email` support NodeJS 6.x -> 9.x. Older NodeJS will not work with this package.
 
 ## What this does not do.
 
