@@ -1,6 +1,6 @@
 {
   "name": "inline-email",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "CLI for Merging HTML and CSS to inline for emails. Supports Inky Templates.",
   "main": "bin/inline-email",
   "scripts": {
