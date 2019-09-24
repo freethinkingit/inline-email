@@ -14,7 +14,7 @@ function FileDetails(filename) {
         return new FileDetails(filename)
     }
 
-    this.filename = filename
+    this.filename = filename;
     this.exists = FS.existsSync(filename)
 }
 
@@ -38,16 +38,16 @@ function fileExists(input) {
     return true;
 }
 
-function concatFiles(filepaths) {
+function concatFiles(filepath) {
     let file = '';
 
-    if (filepaths instanceof Array) {
-        filepaths.forEach((filepath) => {
-            file += FS.readFileSync(filepath, { encoding: 'utf8' });
+    if (filepath instanceof Array) {
+        filepath.forEach((path) => {
+            file += FS.readFileSync(path, {encoding: 'utf8'});
             file += '\n';
         })
     } else {
-        file += FS.readFileSync(filepaths, { encoding: 'utf8' });
+        file += FS.readFileSync(filepath, {encoding: 'utf8'});
     }
 
     return file;
@@ -95,7 +95,7 @@ const optionDefinitions = [
         name: 'force',
         alias: 'f',
         type: Boolean,
-        description: 'Overrwrite the output file.',
+        description: 'Overwrite the output file.',
         defaultValue: false
     },
     {
@@ -106,7 +106,8 @@ const optionDefinitions = [
         defaultValue: false
     }
 ];
-const options = CommandLineArgs(optionDefinitions)
+
+const options = CommandLineArgs(optionDefinitions);
 const usage = CommandLineUsage([
     {
         header: 'Command Line Tool for merging HTML and CSS to inline',
@@ -114,7 +115,7 @@ const usage = CommandLineUsage([
     },
     {
         header: 'Usage',
-        content: '--html and --css are REQUIRED, and the files must exist.\n--out must not exist. You can use --force/-f to overrwrite it if does.',
+        content: '--html and --css are REQUIRED, and the files must exist.\n--out must not exist. You can use --force/-f to overwrite it if does.',
     },
     {
         header: 'Example',
@@ -127,14 +128,14 @@ const usage = CommandLineUsage([
     {
         content: 'Project home: [underline]{https://github.com/sabind/email-inliner-cli}'
     }
-])
+]);
 
 if (options.help) {
     console.log(usage);
     process.exit(0);
 } else {
     // Convert to render options
-    const linkCss = options.css.length ? false : true;
+    const linkCss = !options.css.length;
     const renderOptions = {
         inky: {
             enabled: options.inky
@@ -145,36 +146,32 @@ if (options.help) {
                 images: !options.noInlineImages
             }
         }
-    }
+    };
 
     if (!options.html) {
-        console.error('\x1b[31m', 'An HTML file is requiered.')
-
-        console.error('\x1b[0m')
+        console.error('\x1b[31m', 'An HTML file is required.');
+        console.error('\x1b[0m');
         console.error(usage);
         process.exit(1);
     }
 
     if (!fileExists(options.html)) {
-        console.error('\x1b[31m', 'HTML file path references a file that does not exist.')
-
-        console.error('\x1b[0m')
+        console.error('\x1b[31m', 'HTML file path references a file that does not exist.');
+        console.error('\x1b[0m');
         console.error(usage);
         process.exit(1);
     }
 
     if (!fileExists(options.css)) {
-        console.error('\x1b[31m', 'If not specifying "--link", CSS file(s) are required.')
-
-        console.error('\x1b[0m')
+        console.error('\x1b[31m', 'If not specifying "--link", CSS file(s) are required.');
+        console.error('\x1b[0m');
         console.error(usage);
         process.exit(1);
     }
 
     if (fileExists(options.out) && !options.force) {
         console.error('\x1b[31m', 'Out file path references a file that does exist. Use `--force` or `-f` to overwrite');
-
-        console.error('\x1b[0m')
+        console.error('\x1b[0m');
         console.error(usage);
         process.exit(1);
     }
@@ -189,7 +186,7 @@ if (options.help) {
     if (options.out) {
         promise = Render(htmlFile, cssFile, renderOptions)
             .then((htmlResult) => {
-                FS.writeFileSync(options.out.filename, htmlResult, { encoding: 'utf8' });
+                FS.writeFileSync(options.out.filename, htmlResult, {encoding: 'utf8'});
             });
     } else {
         promise = Render(htmlFile, cssFile, renderOptions)
