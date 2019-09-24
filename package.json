@@ -1,5 +1,5 @@
 {
-  "name": "@freethinkingit/inline-email",
+  "name": "inline-email",
   "version": "1.1.0",
   "description": "CLI for Merging HTML and CSS to inline for emails. Supports Inky Templates.",
   "main": "bin/inline-email",

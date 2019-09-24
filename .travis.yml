@@ -4,11 +4,12 @@ node_js:
 - '7'
 - '8'
 - '9'
+- '10'
 deploy:
-  provider: npm
-  email: hello@freethinking.it
-  api_key:
-    secure: tdHOSCBIJpCil+klQAqUA+OqztIfbqcvusCONGaTK8yJzOCXrJhyUNyHg2VsecIdq1BMxgR0vyzbPlW/wZvXYJbcuA/txThXA33dU53ZCQnMJmF8AJCVXAtl+dj8l6yCSv+RNOVfIKmFqXko5YZVPQSTxZxKWKhGcbjwXc6aGzRwcx9W/pJCw5OPwECx4uTk8kn/BDQby5+IKuUFJQf9dCu9bj0MeIaEo5AnQUvGtpjaKRhvfPqXSoaFrUsVTJTs4CZRSW/ucc2rSPLIJgxSTQvzdYOonMrtBEFcn9faVdOByvOFK8OjXgyrszASqwn3gN+TZhQ8JwEtt+60Ot2SRdWQo5AyNRAAAEfWPvSUHWkD8hMtKlOsfTDJqADx+xPLL1DW0IoMQcFDsXf/MZvo11y8FmDIyQ0osWB5VIV0GgCZrnQefUxeOC/2SNM16J20B2TTP5X3uMdY+awENNBtyY8V2aeGJZ794rBS2MlUpzyFl4F4L6/w5Qdg+kOh+9bsi8/X9BnzVaMVd8hnlySI3dy+OA0PKP1UZOIp/uRvmCSAcjhSdC/eRFYOSI6rs/zupSm8KMWNo8ft66K71uE9Ubr1/rFuzh0yVb1LWkmN2ZVZnttWFTgzLedtnoOEqjG8rIlfOCYrybf9kbJv+ENSMmIRQ2K4NFo8baHPxSBsegc=
-  on:
-    tags: true
-    repo: freethinkingit/inline-email
+  - provider: npm
+    email: hello@freethinking.it
+    api_key:
+      secure: tdHOSCBIJpCil+klQAqUA+OqztIfbqcvusCONGaTK8yJzOCXrJhyUNyHg2VsecIdq1BMxgR0vyzbPlW/wZvXYJbcuA/txThXA33dU53ZCQnMJmF8AJCVXAtl+dj8l6yCSv+RNOVfIKmFqXko5YZVPQSTxZxKWKhGcbjwXc6aGzRwcx9W/pJCw5OPwECx4uTk8kn/BDQby5+IKuUFJQf9dCu9bj0MeIaEo5AnQUvGtpjaKRhvfPqXSoaFrUsVTJTs4CZRSW/ucc2rSPLIJgxSTQvzdYOonMrtBEFcn9faVdOByvOFK8OjXgyrszASqwn3gN+TZhQ8JwEtt+60Ot2SRdWQo5AyNRAAAEfWPvSUHWkD8hMtKlOsfTDJqADx+xPLL1DW0IoMQcFDsXf/MZvo11y8FmDIyQ0osWB5VIV0GgCZrnQefUxeOC/2SNM16J20B2TTP5X3uMdY+awENNBtyY8V2aeGJZ794rBS2MlUpzyFl4F4L6/w5Qdg+kOh+9bsi8/X9BnzVaMVd8hnlySI3dy+OA0PKP1UZOIp/uRvmCSAcjhSdC/eRFYOSI6rs/zupSm8KMWNo8ft66K71uE9Ubr1/rFuzh0yVb1LWkmN2ZVZnttWFTgzLedtnoOEqjG8rIlfOCYrybf9kbJv+ENSMmIRQ2K4NFo8baHPxSBsegc=
+    on:
+      tags: true
+      repo: freethinkingit/inline-email
