@@ -12,7 +12,7 @@
   "author": "Dan Sabin <dan@freethinking.it>",
   "license": "MIT",
   "dependencies": {
-    "@hapi/hoek": "^8.2.4",
+    "@hapi/hoek": "^9.0.4",
     "@hapi/lab": "^20.3.2",
     "command-line-args": "5.1.1",
     "command-line-usage": "4.1.0",
