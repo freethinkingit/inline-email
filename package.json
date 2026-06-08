@@ -1,6 +1,6 @@
 {
   "name": "inline-email",
-  "version": "3.0.0-alpha.0",
+  "version": "3.0.0",
   "description": "Modern email template compilation and rendering for safe HTML email.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

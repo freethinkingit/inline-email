@@ -297,8 +297,8 @@ npm test
 Releases publish to npm and create a GitHub Release. Push a version tag that matches `package.json`:
 
 ```sh
-git tag v3.0.0-alpha.0
-git push origin v3.0.0-alpha.0
+git tag v3.0.0
+git push origin v3.0.0
 ```
 
 GitHub Actions runs audit, tests, build, package verification, publishes to npm with provenance, and creates a GitHub Release with the package tarball attached.
