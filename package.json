@@ -23,6 +23,7 @@
     "build": "npm run clean && tsc -p tsconfig.json",
     "clean": "rm -rf dist",
     "examples": "npm run build && node scripts/render-examples.js",
+    "examples:serve": "npm run examples && node scripts/serve-examples.js",
     "examples:auth": "npm run examples",
     "prepublishOnly": "npm test && npm run build",
     "prepack": "npm run build",

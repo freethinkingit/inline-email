@@ -15,6 +15,8 @@ Modern email template compilation and rendering for safe HTML email.
 
 Build responsive transactional and product emails from small HTML building blocks, plain CSS, and simple runtime data.
 
+Migrating from the old package? Start with the [v3 migration guide](https://github.com/freethinkingit/inline-email/wiki/Migrating-to-v3).
+
 ```html
 <email>
   <preview>{{featureCount}} ACME features your team can start using this week.</preview>
@@ -47,6 +49,19 @@ Build responsive transactional and product emails from small HTML building block
 
 The repo includes rendered examples for auth, onboarding, product marketing, usage digests, and upgrade offers. Run `npm run examples` to regenerate them into `examples/out`.
 
+To open the full example gallery locally:
+
+```sh
+npm run examples:serve
+```
+
+Then visit `http://localhost:4173`.
+
+For app-shaped examples, see:
+
+- [`examples/integrations/node-send.js`](examples/integrations/node-send.js): compile once, render with user data, and pass the result to a sender.
+- [`examples/integrations/preview-server.js`](examples/integrations/preview-server.js): preview a rendered email through a small local HTTP route.
+
 ## Status
 
 The package targets Node.js 20, 22, and 24.
@@ -55,7 +70,7 @@ The package targets Node.js 20, 22, and 24.
 
 - [CI workflow](https://github.com/freethinkingit/inline-email/actions/workflows/ci.yml) runs install, high-severity audit, build, tests, and package dry-run on Node.js 20, 22, and 24.
 - [Release workflow](https://github.com/freethinkingit/inline-email/actions/workflows/release.yml) publishes version tags to npm with provenance and attaches the package tarball to a GitHub Release.
-- Test coverage is focused in [`test/`](test/) across the template renderer, responsive layout compiler, compile/render API, and CLI argument handling.
+- Test coverage is focused in [`test/`](test/) across the template renderer, responsive layout compiler, compile/render API, example templates, and CLI argument handling.
 - [Migration guide](https://github.com/freethinkingit/inline-email/wiki/Migrating-to-v3) covers the v2 to v3 API and CLI changes.
 - Local checks:
 
@@ -65,6 +80,8 @@ npm run build
 npm test
 npm pack --dry-run
 ```
+
+The example integration test compiles real auth and marketing templates with production-shaped data. A later visual regression layer can render those same baseline emails in a browser and compare screenshots when layout changes need full UI coverage.
 
 ## Installation
 

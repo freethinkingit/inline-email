@@ -28,4 +28,5 @@ jobs:
       - run: npm audit --audit-level=high
       - run: npm run build
       - run: npm test
+      - run: npm run examples
       - run: npm pack --dry-run
