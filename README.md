@@ -49,13 +49,14 @@ The repo includes rendered examples for auth, onboarding, product marketing, usa
 
 ## Status
 
-The package targets Node.js 20 and 22.
+The package targets Node.js 20, 22, and 24.
 
 ## Quality
 
-- [CI workflow](https://github.com/freethinkingit/inline-email/actions/workflows/ci.yml) runs install, high-severity audit, build, tests, and package dry-run on Node.js 20 and 22.
+- [CI workflow](https://github.com/freethinkingit/inline-email/actions/workflows/ci.yml) runs install, high-severity audit, build, tests, and package dry-run on Node.js 20, 22, and 24.
 - [Release workflow](https://github.com/freethinkingit/inline-email/actions/workflows/release.yml) publishes version tags to npm with provenance and attaches the package tarball to a GitHub Release.
 - Test coverage is focused in [`test/`](test/) across the template renderer, responsive layout compiler, compile/render API, and CLI argument handling.
+- [Migration guide](https://github.com/freethinkingit/inline-email/wiki/Migrating-to-v3) covers the v2 to v3 API and CLI changes.
 - Local checks:
 
 ```sh

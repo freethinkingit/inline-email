@@ -24,14 +24,19 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      - run: npm ci
+      - run: npm install
       - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run build
       - name: Verify tag matches package version
         run: node -e "const pkg = require('./package.json'); const expected = 'v' + pkg.version; if (process.env.GITHUB_REF_NAME !== expected) { throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + expected); }"
       - name: Resolve npm dist tag
-        run: node -e "const fs = require('fs'); const pkg = require('./package.json'); const tag = pkg.version.includes('-') ? 'next' : 'latest'; fs.appendFileSync(process.env.GITHUB_ENV, 'NPM_DIST_TAG=' + tag + '\n');"
+        run: |
+          if node -p "require('./package.json').version.includes('-')" | grep true; then
+            echo "NPM_DIST_TAG=next" >> "$GITHUB_ENV"
+          else
+            echo "NPM_DIST_TAG=latest" >> "$GITHUB_ENV"
+          fi
       - run: npm pack
 
       - name: Publish to npm

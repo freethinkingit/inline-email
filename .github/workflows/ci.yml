@@ -16,6 +16,7 @@ jobs:
         node-version:
           - 20
           - 22
+          - 24
 
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +24,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm audit --audit-level=high
       - run: npm run build
       - run: npm test
