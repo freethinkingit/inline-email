@@ -1,7 +1,7 @@
 import juice from 'juice';
-import { renderResponsiveLayout } from './layout';
-import { applyEmailStyle } from './style';
-import { renderTemplate } from './template';
+import { renderResponsiveLayout } from './layout.js';
+import { applyEmailStyle } from './style.js';
+import { renderTemplate } from './template.js';
 import type {
   CompiledEmailTemplate,
   CompileEmailTemplateOptions,
@@ -12,7 +12,7 @@ import type {
   RenderEmailOptions,
   RenderedEmail,
   TemplateTransform
-} from './types';
+} from './types.js';
 
 const DEFAULT_JUICE_OPTIONS: JuiceOptions = {
   webResources: {

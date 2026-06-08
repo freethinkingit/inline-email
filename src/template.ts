@@ -1,4 +1,4 @@
-import type { RenderData, TemplateData, TemplateValue } from './types';
+import type { RenderData, TemplateData, TemplateValue } from './types.js';
 
 const BLOCK_PATTERN = /{{#\s*([A-Za-z0-9_.-]+)\s*}}([\s\S]*?){{\/\s*\1\s*}}/g;
 const SLOT_PATTERN = /{{\s*slot:([A-Za-z0-9_.-]+)\s*}}/g;

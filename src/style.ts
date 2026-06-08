@@ -1,4 +1,4 @@
-import type { EmailStyle, EmailStyleVariant } from './types';
+import type { EmailStyle, EmailStyleVariant } from './types.js';
 
 type StyleTarget = 'container' | 'content';
 

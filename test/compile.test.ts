@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileEmailTemplate, inlineEmailHtml, renderEmail } from '../src';
+import { compileEmailTemplate, inlineEmailHtml, renderEmail } from '../src/index.ts';
 
 describe('compileEmailTemplate', () => {
   it('inlines CSS once and renders dynamic data later', async () => {

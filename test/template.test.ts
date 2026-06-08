@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderTemplate } from '../src/template';
+import { renderTemplate } from '../src/template.ts';
 
 describe('renderTemplate', () => {
   it('escapes normal variables by default', () => {

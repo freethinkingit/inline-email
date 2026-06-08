@@ -25,8 +25,8 @@ jobs:
 
       - run: npm install
       - run: npm audit --audit-level=high
-      - run: npm test
       - run: npm run build
+      - run: npm test
       - name: Verify tag matches package version
         run: node -e "const pkg = require('./package.json'); const expected = 'v' + pkg.version; if (process.env.GITHUB_REF_NAME !== expected) { throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + expected); }"
       - name: Resolve npm dist tag

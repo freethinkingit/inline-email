@@ -1,7 +1,9 @@
-const { copyFileSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
-const { basename, join } = require('node:path');
-const { compileEmailTemplate } = require('../dist');
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { compileEmailTemplate } from '../dist/index.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 const examplesDir = join(rootDir, 'examples');
 const outputDir = join(examplesDir, 'out');

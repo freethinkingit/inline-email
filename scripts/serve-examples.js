@@ -1,7 +1,9 @@
-const { createReadStream, existsSync, statSync } = require('node:fs');
-const { createServer } = require('node:http');
-const { extname, join, normalize } = require('node:path');
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { dirname, extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 const outputDir = join(rootDir, 'examples', 'out');
 const host = '127.0.0.1';

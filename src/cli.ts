@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { compileEmailTemplate } from './compile';
+import { pathToFileURL } from 'node:url';
+import { compileEmailTemplate } from './compile.js';
 
 interface CliOptions {
   html?: string;
@@ -158,7 +159,7 @@ Options:
 
 class CliError extends Error {}
 
-if (require.main === module) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main(process.argv.slice(2)).catch((error: Error) => {
     console.error('\x1b[31m%s\x1b[0m', error.message);
     console.error(usage());

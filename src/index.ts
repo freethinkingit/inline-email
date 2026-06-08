@@ -2,10 +2,10 @@ export {
   compileEmailTemplate,
   inlineEmailHtml,
   renderEmail
-} from './compile';
+} from './compile.js';
 
-export { renderTemplate } from './template';
-export { renderResponsiveLayout } from './layout';
+export { renderTemplate } from './template.js';
+export { renderResponsiveLayout } from './layout.js';
 
 export type {
   CompiledEmailTemplate,
@@ -20,4 +20,4 @@ export type {
   TemplateData,
   TemplateTransform,
   TemplateValue
-} from './types';
+} from './types.js';

@@ -1,7 +1,9 @@
-const { readFileSync } = require('node:fs');
-const { join } = require('node:path');
-const { compileEmailTemplate } = require('../../dist');
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { compileEmailTemplate } from '../../dist/index.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..', '..');
 const template = readFileSync(join(rootDir, 'examples', 'auth', 'welcome-verify.html'), 'utf8');
 const css = readFileSync(join(rootDir, 'examples', 'auth', 'shared.css'), 'utf8');

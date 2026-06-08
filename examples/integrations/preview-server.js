@@ -1,8 +1,10 @@
-const { createServer } = require('node:http');
-const { readFileSync } = require('node:fs');
-const { join } = require('node:path');
-const { compileEmailTemplate } = require('../../dist');
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { compileEmailTemplate } from '../../dist/index.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..', '..');
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 4174);

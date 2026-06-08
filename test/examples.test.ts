@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { compileEmailTemplate } from '../src';
+import { compileEmailTemplate } from '../src/index.ts';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 const examplesDir = join(rootDir, 'examples');
 const sharedCss = readFileSync(join(examplesDir, 'auth', 'shared.css'), 'utf8');

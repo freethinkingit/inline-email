@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseArgs } from '../src/cli';
+import { parseArgs } from '../src/cli.ts';
 
 describe('parseArgs', () => {
   it('supports legacy --css style.css input.html ordering', () => {

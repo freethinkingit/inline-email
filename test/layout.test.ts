@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileEmailTemplate, renderResponsiveLayout } from '../src';
+import { compileEmailTemplate, renderResponsiveLayout } from '../src/index.ts';
 
 describe('renderResponsiveLayout', () => {
   it('renders semantic email tags into responsive table markup', () => {
