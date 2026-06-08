@@ -28,6 +28,7 @@
     "prepublishOnly": "npm test && npm run build",
     "prepack": "npm run build",
     "test": "vitest run",
+    "test:visual": "playwright test",
     "test:watch": "vitest"
   },
   "bin": {
@@ -39,6 +40,7 @@
     "juice": "^12.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^20.14.15",
     "typescript": "^5.5.4",
     "vitest": "^4.1.8"

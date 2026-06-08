@@ -78,10 +78,17 @@ The package targets Node.js 20, 22, and 24.
 npm audit --audit-level=high
 npm run build
 npm test
+npm run test:visual
 npm pack --dry-run
 ```
 
-The example integration test compiles real auth and marketing templates with production-shaped data. A later visual regression layer can render those same baseline emails in a browser and compare screenshots when layout changes need full UI coverage.
+The example integration test compiles real auth and marketing templates with production-shaped data. Visual regression tests render the baseline emails in headless Chromium and compare screenshots against approved snapshots.
+
+When an intentional layout change updates the screenshots:
+
+```sh
+npm run test:visual -- --update-snapshots
+```
 
 ## Installation
 

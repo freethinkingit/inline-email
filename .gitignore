@@ -3,6 +3,7 @@
 /node_modules
 /.vscode
 /dist
+/test-results
 
 
 # Sample Files for Testing
