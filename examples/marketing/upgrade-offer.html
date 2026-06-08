@@ -1,0 +1,22 @@
+<email>
+  <preview>Unlock more ACME automations for your team.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <brand href="{{brandUrl}}" mark="A">ACME</brand>
+      <p class="eyebrow">Recommended plan</p>
+      <h1 class="headline">Your team is ready for more automation</h1>
+      <spacer size="18" />
+      <p class="body-copy">Based on your recent activity, these additions can save your team time every week.</p>
+      <spacer size="24" />
+      {{#benefits}}
+      <alert tone="info">{{.}}</alert>
+      <spacer size="12" />
+      {{/benefits}}
+      <spacer size="16" />
+      <button href="{{upgradeUrl}}" background="#246BFE">Compare plans</button>
+    </section>
+    <footer padding="24" background="#f7f9fc">
+      <p class="muted">Sent by Freethinking IT · <a class="footer-link" href="{{preferencesUrl}}">Manage preferences</a></p>
+    </footer>
+  </container>
+</email>

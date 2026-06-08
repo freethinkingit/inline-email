@@ -1,0 +1,25 @@
+<email>
+  <preview>{{featureCount}} ACME features your team can start using this week.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <brand href="{{brandUrl}}" mark="A">ACME</brand>
+      <p class="eyebrow">Feature roundup</p>
+      <h1 class="headline">Three upgrades built for repeat work</h1>
+      <spacer size="18" />
+      <p class="body-copy">Use repeated template blocks to render as many feature cards as each customer needs.</p>
+      <spacer size="24" />
+      {{#features}}
+      <panel tone="{{tone}}">
+        <p class="feature-title">{{title}}</p>
+        <p class="muted">{{description}}</p>
+      </panel>
+      <spacer size="14" />
+      {{/features}}
+      <spacer size="14" />
+      <button href="{{featuresUrl}}" background="#17202a">See all features</button>
+    </section>
+    <footer padding="24" background="#f7f9fc">
+      <p class="muted">Sent by Freethinking IT · <a class="footer-link" href="{{preferencesUrl}}">Manage preferences</a></p>
+    </footer>
+  </container>
+</email>

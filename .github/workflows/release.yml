@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm test
+      - run: npm run build
+      - name: Verify tag matches package version
+        run: node -e "const pkg = require('./package.json'); const expected = 'v' + pkg.version; if (process.env.GITHUB_REF_NAME !== expected) { throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + expected); }"
+      - run: npm pack
+
+      - name: Publish to npm
+        run: npm publish --provenance
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.tgz'
+          generate_release_notes: true

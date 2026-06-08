@@ -1,0 +1,55 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.eyebrow {
+  color: #516070;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.headline {
+  color: #17202a;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.16;
+  margin: 0;
+}
+
+.body-copy {
+  color: #344054;
+  font-size: 16px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.muted {
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.feature-title {
+  color: #17202a;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0 0 4px;
+}
+
+.metric {
+  color: #246bfe;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  margin: 0;
+}
+
+.footer-link {
+  color: #1f6feb;
+  text-decoration: none;
+}

@@ -1,0 +1,21 @@
+<email>
+  <preview>Welcome to ACME. Verify your email to finish setting up your account.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <brand href="{{brandUrl}}" mark="A">ACME</brand>
+      <hero-image src="{{welcomeImageUrl}}" alt="ACME workspace preview" width="528" radius="12" />
+      <spacer size="24" />
+      <p class="eyebrow">Welcome to ACME</p>
+      <h1 class="headline">Hi {{firstName}}, let’s get your account verified.</h1>
+      <spacer size="18" />
+      <p class="body-copy">ACME helps your team keep important work moving. Confirm this email address and your workspace will be ready.</p>
+      <spacer size="28" />
+      <button href="{{verifyUrl}}" background="#246BFE">Verify email</button>
+      <spacer size="24" />
+      <p class="muted">This link expires in {{expiresIn}}. If you did not create an ACME account, you can safely ignore this email.</p>
+    </section>
+    <footer padding="24" background="#f7f9fc">
+      <p class="muted">Sent by Freethinking IT · <a class="footer-link" href="{{appUrl}}">Open ACME</a></p>
+    </footer>
+  </container>
+</email>

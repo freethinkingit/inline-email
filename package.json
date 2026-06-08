@@ -1,27 +1,46 @@
 {
   "name": "inline-email",
-  "version": "2.0.1",
-  "description": "CLI for Merging HTML and CSS to inline for emails. Supports Inky Templates.",
-  "main": "bin/inline-email",
+  "version": "3.0.0-alpha.0",
+  "description": "Modern email template compilation and rendering for safe HTML email.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs/assets",
+    "README.md",
+    "LICENSE.md"
+  ],
   "scripts": {
-    "test": "node_modules/lab/bin/lab"
+    "build": "npm run clean && tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "examples": "npm run build && node scripts/render-examples.js",
+    "examples:auth": "npm run examples",
+    "prepublishOnly": "npm test && npm run build",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "bin": {
-    "inline-email": "bin/inline-email"
+    "inline-email": "dist/cli.js"
   },
   "author": "Dan Sabin <dan@freethinking.it>",
   "license": "MIT",
   "dependencies": {
-    "@hapi/hoek": "^8.2.4",
-    "@hapi/lab": "^20.3.2",
-    "command-line-args": "5.1.1",
-    "command-line-usage": "4.1.0",
-    "inky": "1.3.7",
-    "juice": "5.2.0"
+    "juice": "^12.1.0"
   },
   "devDependencies": {
-    "@hapi/code": "^6.0.0",
-    "lab": "18.0.2"
+    "@types/node": "^20.14.15",
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.8"
   },
   "repository": {
     "type": "git",
@@ -29,7 +48,12 @@
   },
   "keywords": [
     "email",
+    "html-email",
     "inline",
+    "template",
+    "email-templates",
+    "responsive-email",
+    "ses",
     "cli"
   ],
   "bugs": {
@@ -37,6 +61,6 @@
   },
   "homepage": "https://github.com/freethinkingit/inline-email#readme",
   "engines": {
-    "node": ">= 8.0.0"
+    "node": ">=20.0.0"
   }
 }

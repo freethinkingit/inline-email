@@ -1,0 +1,23 @@
+<email>
+  <preview>Your ACME sign-in link is ready.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <brand href="{{brandUrl}}" mark="A">ACME</brand>
+      <p class="eyebrow">Secure sign-in</p>
+      <h1 class="headline">Use this link to sign in to ACME</h1>
+      <spacer size="18" />
+      <p class="body-copy">This link signs you in as {{email}}. It can only be used once and expires in {{expiresIn}}.</p>
+      <spacer size="28" />
+      <button href="{{magicUrl}}" background="#1570ef">Sign in</button>
+      <spacer size="24" />
+      <columns>
+        <column width="50%" padding="0">
+          <p class="muted"><strong>Request time</strong><br>{{requestedAt}}</p>
+        </column>
+        <column width="50%" padding="0">
+          <p class="muted"><strong>Approx location</strong><br>{{location}}</p>
+        </column>
+      </columns>
+    </section>
+  </container>
+</email>

@@ -2,11 +2,14 @@
 
 /node_modules
 /.vscode
+/dist
 
 
 # Sample Files for Testing
 /out
 /in
+/examples/out
+/examples/**/out
 
 .DS_Store
 .idea

@@ -1,3 +1,12 @@
-Please provide your `npm -v`, `node -v` and `inline-email` version from the `package.json` when filing issues.
+# Issue
 
-It's helpful to include your OS version as well. Some issues with `node` and `npm` exist on Windows as an example.
+Please include:
+
+- `@freethinkingit/inline-email` version
+- Node.js version
+- Operating system
+- A minimal template, CSS snippet, or CLI command that reproduces the issue
+- Expected output
+- Actual output
+
+For rendering bugs, include the source template before compilation and the relevant generated HTML after compilation.

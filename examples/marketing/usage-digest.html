@@ -1,0 +1,31 @@
+<email>
+  <preview>Your weekly ACME workspace digest is ready.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <brand href="{{brandUrl}}" mark="A">ACME</brand>
+      <p class="eyebrow">Weekly digest</p>
+      <h1 class="headline">Your team moved {{completedCount}} items forward</h1>
+      <spacer size="18" />
+      <p class="body-copy">Here are the highlights from {{workspaceName}} this week.</p>
+      <spacer size="24" />
+      {{#highlights}}
+      <columns>
+        <column width="28%" padding="0">
+          <p class="metric">{{value}}</p>
+        </column>
+        <column width="72%" padding="0">
+          <p class="feature-title">{{label}}</p>
+          <p class="muted">{{detail}}</p>
+        </column>
+      </columns>
+      <spacer size="16" />
+      <divider />
+      <spacer size="16" />
+      {{/highlights}}
+      <button href="{{digestUrl}}" background="#1570ef">Open workspace</button>
+    </section>
+    <footer padding="24" background="#f7f9fc">
+      <p class="muted">Sent by Freethinking IT · <a class="footer-link" href="{{preferencesUrl}}">Manage preferences</a></p>
+    </footer>
+  </container>
+</email>
