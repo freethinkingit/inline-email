@@ -1,7 +1,7 @@
 import juice from 'juice';
 import { renderResponsiveLayout } from './layout.js';
 import { applyEmailStyle } from './style.js';
-import { renderTemplate } from './template.js';
+import { isTemplateData, renderTemplate } from './template.js';
 import type {
   CompiledEmailTemplate,
   CompileEmailTemplateOptions,
@@ -44,9 +44,9 @@ export async function compileEmailTemplate(
       const renderedHtml = renderTemplate(html, data);
 
       return {
-        subject: renderTemplate(subject, data),
+        subject: renderTemplate(subject, data, { escape: false }),
         html: applyEmailStyle(renderedHtml, style),
-        text: renderTemplate(text, data)
+        text: renderTemplate(text, data, { escape: false })
       };
     }
   };
@@ -140,5 +140,16 @@ function isRenderContext(input: RenderData | EmailRenderContext): input is Email
   }
 
   const keys = Object.keys(input);
-  return 'style' in input || (keys.length > 0 && keys.every((key) => key === 'data' || key === 'style'));
+  const context = input as EmailRenderContext;
+
+  return (
+    keys.length > 0 &&
+    keys.every((key) => key === 'data' || key === 'style') &&
+    isOptionalPlainObject(context.data) &&
+    isOptionalPlainObject(context.style)
+  );
+}
+
+function isOptionalPlainObject(value: unknown): boolean {
+  return value === undefined || isTemplateData(value);
 }

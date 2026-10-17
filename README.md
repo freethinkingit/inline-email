@@ -75,7 +75,7 @@ The package targets Node.js 20, 22, and 24.
 - Local checks:
 
 ```sh
-npm audit --audit-level=high
+npm audit --audit-level=high --omit=dev
 npm run build
 npm test
 npm run test:visual
@@ -129,6 +129,8 @@ const email = compiled.render({
 // { subject, html, text }
 ```
 
+`render()` also accepts template data directly, such as `compiled.render({ firstName: 'Dan' })`. A `style` key is only treated as a style object when its value is an object; `render({ style: 'casual' })` renders `style` as template data.
+
 One-shot rendering is also available:
 
 ```ts
@@ -161,6 +163,8 @@ Repeated blocks render arrays:
 </ul>
 ```
 
+Blocks nest, including under the same key, so recursive data such as items that contain their own `items` renders innermost first.
+
 Trusted HTML slots must be explicit:
 
 ```html
@@ -168,6 +172,8 @@ Trusted HTML slots must be explicit:
 ```
 
 Slots are supplied separately via `data.slots`, which keeps trusted HTML injection intentional instead of relying on accidental unescaped variables.
+
+Escaping applies to the HTML body only. The `subject` and `text` templates render values as plain text, so an apostrophe or ampersand in a name stays as typed. Rendered values are never re-scanned for template syntax, so a value containing `{{...}}` is output literally.
 
 ## Responsive Layout Tags
 
@@ -311,7 +317,7 @@ Supported options:
 ## Development
 
 ```sh
-npm install
+npm ci
 npm run build
 npm test
 ```

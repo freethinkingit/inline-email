@@ -24,8 +24,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - run: npm install
-      - run: npm audit --audit-level=high
+      - run: npm ci
+      - run: npm audit --audit-level=high --omit=dev
       - run: npm run build
       - run: npm test
       - run: npm run examples
@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npx playwright install chromium
       - run: npm run test:visual
       - uses: actions/upload-artifact@v4

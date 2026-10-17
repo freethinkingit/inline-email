@@ -13,9 +13,46 @@ describe('compileEmailTemplate', () => {
     expect(compiled.html).toContain('style="color: red;"');
 
     const email = compiled.render({ firstName: '<Dan>' });
-    expect(email.subject).toBe('Welcome, &lt;Dan&gt;');
+    expect(email.subject).toBe('Welcome, <Dan>');
     expect(email.html).toContain('Hello &lt;Dan&gt;');
-    expect(email.text).toBe('Hello &lt;Dan&gt;');
+    expect(email.text).toBe('Hello <Dan>');
+  });
+
+  it('renders subject and text without HTML escaping', async () => {
+    const compiled = await compileEmailTemplate({
+      subject: 'Hi {{name}}, Tom & Jerry',
+      html: '<p>{{name}}</p>',
+      text: 'Hi {{name}} & welcome'
+    });
+
+    const email = compiled.render({ name: "O'Brien" });
+    expect(email.subject).toBe("Hi O'Brien, Tom & Jerry");
+    expect(email.html).toBe('<p>O&#39;Brien</p>');
+    expect(email.text).toBe("Hi O'Brien & welcome");
+  });
+
+  it('treats bare data with a string style key as template data', async () => {
+    const compiled = await compileEmailTemplate({
+      subject: 'Hi {{name}}',
+      html: '<p>{{name}} prefers a {{style}} tone</p>'
+    });
+
+    const email = compiled.render({ name: 'Dan', style: 'casual' });
+    expect(email.subject).toBe('Hi Dan');
+    expect(email.html).toBe('<p>Dan prefers a casual tone</p>');
+  });
+
+  it('treats an object style key as a render context', async () => {
+    const compiled = await compileEmailTemplate({
+      html: '<panel tone="info">{{message}}</panel>'
+    });
+
+    const email = compiled.render({
+      data: { message: 'Ready' },
+      style: { tones: { info: { background: '#123456' } } }
+    });
+    expect(email.html).toContain('Ready');
+    expect(email.html).toContain('background:#123456;');
   });
 
   it('supports one-shot rendering', async () => {
