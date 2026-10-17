@@ -18,6 +18,30 @@ describe('compileEmailTemplate', () => {
     expect(email.text).toBe('Hello &lt;Dan&gt;');
   });
 
+  it('treats bare data with a string style key as template data', async () => {
+    const compiled = await compileEmailTemplate({
+      subject: 'Hi {{name}}',
+      html: '<p>{{name}} prefers a {{style}} tone</p>'
+    });
+
+    const email = compiled.render({ name: 'Dan', style: 'casual' });
+    expect(email.subject).toBe('Hi Dan');
+    expect(email.html).toBe('<p>Dan prefers a casual tone</p>');
+  });
+
+  it('treats an object style key as a render context', async () => {
+    const compiled = await compileEmailTemplate({
+      html: '<panel tone="info">{{message}}</panel>'
+    });
+
+    const email = compiled.render({
+      data: { message: 'Ready' },
+      style: { tones: { info: { background: '#123456' } } }
+    });
+    expect(email.html).toContain('Ready');
+    expect(email.html).toContain('background:#123456;');
+  });
+
   it('supports one-shot rendering', async () => {
     const email = await renderEmail({
       template: {

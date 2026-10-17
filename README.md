@@ -129,6 +129,8 @@ const email = compiled.render({
 // { subject, html, text }
 ```
 
+`render()` also accepts template data directly, such as `compiled.render({ firstName: 'Dan' })`. A `style` key is only treated as a style object when its value is an object; `render({ style: 'casual' })` renders `style` as template data.
+
 One-shot rendering is also available:
 
 ```ts
