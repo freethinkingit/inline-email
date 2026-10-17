@@ -1,6 +1,6 @@
 import type { RenderData, RenderTemplateOptions, TemplateData, TemplateValue } from './types.js';
 
-const BLOCK_PATTERN = /{{#\s*([A-Za-z0-9_.-]+)\s*}}([\s\S]*?){{\/\s*\1\s*}}/g;
+const BLOCK_TAG_PATTERN = /{{([#/])\s*([A-Za-z0-9_.-]+)\s*}}/g;
 const SLOT_PATTERN = /{{\s*slot:([A-Za-z0-9_.-]+)\s*}}/g;
 const VARIABLE_PATTERN = /{{\s*([A-Za-z0-9_.-]+|\.)\s*}}/g;
 const TEXT_PATTERN = new RegExp(`${SLOT_PATTERN.source}|${VARIABLE_PATTERN.source}`, 'g');
@@ -14,14 +14,58 @@ export function renderTemplate(
   let output = '';
   let cursor = 0;
 
-  for (const match of template.matchAll(BLOCK_PATTERN)) {
-    const [block, key, body] = match;
-    output += renderText(template.slice(cursor, match.index), data, escape);
-    output += renderBlock(key, body, data, escape);
-    cursor = match.index + block.length;
+  for (const block of findBlocks(template)) {
+    output += renderText(template.slice(cursor, block.start), data, escape);
+    output += renderBlock(block.key, block.body, data, escape);
+    cursor = block.end;
   }
 
   return output + renderText(template.slice(cursor), data, escape);
+}
+
+interface Block {
+  key: string;
+  body: string;
+  start: number;
+  end: number;
+}
+
+interface OpenBlock {
+  key: string;
+  start: number;
+  bodyStart: number;
+}
+
+function findBlocks(template: string): Block[] {
+  const blocks: Block[] = [];
+  const open: OpenBlock[] = [];
+
+  for (const match of template.matchAll(BLOCK_TAG_PATTERN)) {
+    const [tag, kind, key] = match;
+    const top = open.at(-1);
+
+    if (kind === '#') {
+      open.push({ key, start: match.index, bodyStart: match.index + tag.length });
+      continue;
+    }
+
+    if (!top || top.key !== key) {
+      continue;
+    }
+
+    open.pop();
+
+    if (open.length === 0) {
+      blocks.push({
+        key,
+        body: template.slice(top.bodyStart, match.index),
+        start: top.start,
+        end: match.index + tag.length
+      });
+    }
+  }
+
+  return blocks;
 }
 
 function renderBlock(key: string, body: string, data: RenderData, escape: boolean): string {

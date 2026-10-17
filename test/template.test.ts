@@ -157,4 +157,22 @@ describe('renderTemplate', () => {
   it('propagates plain-text mode into blocks', () => {
     expect(renderTemplate('{{#items}}{{v}}{{/items}}', { items: [{ v: '<&>' }] }, { escape: false })).toBe('<&>');
   });
+
+  it('closes the innermost block when nested blocks share a name', () => {
+    expect(renderTemplate('{{#a}}[{{#a}}x{{/a}}]{{/a}}', { a: [{ a: [1, 2] }] })).toBe('[xx]');
+  });
+
+  it('renders recursive item lists that reuse the block name', () => {
+    expect(
+      renderTemplate('{{#items}}<li>{{name}}{{#items}} > {{name}}{{/items}}</li>{{/items}}', {
+        items: [{ name: 'Parent', items: [{ name: 'Child' }] }, { name: 'Leaf', items: [] }]
+      })
+    ).toBe('<li>Parent > Child</li><li>Leaf</li>');
+  });
+
+  it('leaves stray close tags and unclosed blocks as text', () => {
+    expect(renderTemplate('{{/items}}{{#items}}{{name}}', { items: [{ name: 'A' }], name: 'top' })).toBe(
+      '{{/items}}{{#items}}top'
+    );
+  });
 });

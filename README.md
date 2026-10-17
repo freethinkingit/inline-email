@@ -163,6 +163,8 @@ Repeated blocks render arrays:
 </ul>
 ```
 
+Blocks nest, including under the same key, so recursive data such as items that contain their own `items` renders innermost first.
+
 Trusted HTML slots must be explicit:
 
 ```html
