@@ -44,9 +44,9 @@ export async function compileEmailTemplate(
       const renderedHtml = renderTemplate(html, data);
 
       return {
-        subject: renderTemplate(subject, data),
+        subject: renderTemplate(subject, data, { escape: false }),
         html: applyEmailStyle(renderedHtml, style),
-        text: renderTemplate(text, data)
+        text: renderTemplate(text, data, { escape: false })
       };
     }
   };

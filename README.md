@@ -171,6 +171,8 @@ Trusted HTML slots must be explicit:
 
 Slots are supplied separately via `data.slots`, which keeps trusted HTML injection intentional instead of relying on accidental unescaped variables.
 
+Escaping applies to the HTML body only. The `subject` and `text` templates render values as plain text, so an apostrophe or ampersand in a name stays as typed. Rendered values are never re-scanned for template syntax, so a value containing `{{...}}` is output literally.
+
 ## Responsive Layout Tags
 
 The compiler includes a small Inky-like responsive layout layer. These reusable tags compile to conservative table markup before CSS is inlined:

@@ -13,9 +13,22 @@ describe('compileEmailTemplate', () => {
     expect(compiled.html).toContain('style="color: red;"');
 
     const email = compiled.render({ firstName: '<Dan>' });
-    expect(email.subject).toBe('Welcome, &lt;Dan&gt;');
+    expect(email.subject).toBe('Welcome, <Dan>');
     expect(email.html).toContain('Hello &lt;Dan&gt;');
-    expect(email.text).toBe('Hello &lt;Dan&gt;');
+    expect(email.text).toBe('Hello <Dan>');
+  });
+
+  it('renders subject and text without HTML escaping', async () => {
+    const compiled = await compileEmailTemplate({
+      subject: 'Hi {{name}}, Tom & Jerry',
+      html: '<p>{{name}}</p>',
+      text: 'Hi {{name}} & welcome'
+    });
+
+    const email = compiled.render({ name: "O'Brien" });
+    expect(email.subject).toBe("Hi O'Brien, Tom & Jerry");
+    expect(email.html).toBe('<p>O&#39;Brien</p>');
+    expect(email.text).toBe("Hi O'Brien & welcome");
   });
 
   it('treats bare data with a string style key as template data', async () => {

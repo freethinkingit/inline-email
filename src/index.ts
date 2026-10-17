@@ -16,6 +16,7 @@ export type {
   RenderData,
   RenderedEmail,
   RenderEmailOptions,
+  RenderTemplateOptions,
   ResponsiveLayoutOptions,
   TemplateData,
   TemplateTransform,

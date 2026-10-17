@@ -15,6 +15,10 @@ export interface RenderData extends TemplateData {
   slots?: Record<string, string | null | undefined>;
 }
 
+export interface RenderTemplateOptions {
+  escape?: boolean;
+}
+
 export interface EmailStyleVariant {
   accent?: string;
   background?: string;
