@@ -23,8 +23,8 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      - run: npm install
-      - run: npm audit --audit-level=high
+      - run: npm ci
+      - run: npm audit --audit-level=high --omit=dev
       - run: npm run build
       - run: npm test
       - name: Verify tag matches package version

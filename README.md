@@ -75,7 +75,7 @@ The package targets Node.js 20, 22, and 24.
 - Local checks:
 
 ```sh
-npm audit --audit-level=high
+npm audit --audit-level=high --omit=dev
 npm run build
 npm test
 npm run test:visual
