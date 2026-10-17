@@ -68,4 +68,93 @@ describe('renderTemplate', () => {
       })
     ).toBe('[a][&lt;b&gt;]Dan');
   });
+
+  it('keeps a complete block found in a value literal', () => {
+    expect(
+      renderTemplate('{{#items}}<li>{{label}}</li>{{/items}}', {
+        secret: 'TOPSECRET',
+        items: [{ label: '{{#items}}{{secret}}{{/items}}' }]
+      })
+    ).toBe('<li>{{#items}}{{secret}}{{/items}}</li>');
+  });
+
+  it('keeps slot syntax literal two blocks deep', () => {
+    expect(
+      renderTemplate('{{#a}}{{#b}}<i>{{v}}</i>{{/b}}{{/a}}', {
+        a: [{ b: [{ v: '{{slot:x}}' }] }],
+        slots: { x: '<b>raw</b>' }
+      })
+    ).toBe('<i>{{slot:x}}</i>');
+  });
+
+  it('keeps template syntax literal in scalar items rendered with a dot', () => {
+    expect(renderTemplate('{{#items}}[{{.}}]{{/items}}', { secret: 'TOPSECRET', items: ['{{secret}}'] })).toBe(
+      '[{{secret}}]'
+    );
+  });
+
+  it('does not let a value close the enclosing block', () => {
+    expect(
+      renderTemplate('{{#items}}<li>{{label}}</li>{{/items}}{{secret}}', {
+        secret: 'A',
+        items: [{ label: '{{/items}}{{secret}}{{#items}}' }]
+      })
+    ).toBe('<li>{{/items}}{{secret}}{{#items}}</li>A');
+  });
+
+  it('does not form a token from a value and the template text after it', () => {
+    expect(renderTemplate('{{#items}}<p>{{a}}x}}</p>{{/items}}', { x: 'X', items: [{ a: '{{' }] })).toBe(
+      '<p>{{x}}</p>'
+    );
+  });
+
+  it('renders nothing for falsy block values and the body once for truthy scalars', () => {
+    expect(
+      renderTemplate('{{#zero}}0{{/zero}}{{#empty}}e{{/empty}}{{#no}}n{{/no}}{{#missing}}m{{/missing}}{{#yes}}{{name}}{{/yes}}', {
+        zero: 0,
+        empty: '',
+        no: false,
+        yes: 'on',
+        name: 'Dan'
+      })
+    ).toBe('Dan');
+  });
+
+  it('renders missing and nested missing keys as empty strings', () => {
+    expect(renderTemplate('[{{missing}}][{{user.missing}}][{{user.name.deep}}]', { user: { name: 'Dan' } })).toBe(
+      '[][][]'
+    );
+  });
+
+  it('inherits parent slots and parent variables inside blocks', () => {
+    expect(
+      renderTemplate('{{#items}}{{slot:badge}}{{label}}/{{owner}}{{/items}}', {
+        owner: 'Dan',
+        items: [{ label: 'One', slots: { badge: 'ignored' } }],
+        slots: { badge: '<b>*</b>' }
+      })
+    ).toBe('<b>*</b>One/Dan');
+  });
+
+  it('resolves dotted paths for block keys and variables', () => {
+    expect(
+      renderTemplate('{{#user.items}}<li>{{name}} {{user.address.city}}</li>{{/user.items}}', {
+        user: { address: { city: 'Oslo' }, items: [{ name: 'a' }, { name: 'b' }] }
+      })
+    ).toBe('<li>a Oslo</li><li>b Oslo</li>');
+  });
+
+  it('renders text and variables between adjacent blocks', () => {
+    expect(
+      renderTemplate('{{#a}}A{{n}}{{/a}} mid {{y}} {{#b}}B{{n}}{{/b}}', {
+        a: [{ n: 1 }],
+        b: [{ n: 2 }],
+        y: 'Y'
+      })
+    ).toBe('A1 mid Y B2');
+  });
+
+  it('propagates plain-text mode into blocks', () => {
+    expect(renderTemplate('{{#items}}{{v}}{{/items}}', { items: [{ v: '<&>' }] }, { escape: false })).toBe('<&>');
+  });
 });
