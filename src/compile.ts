@@ -1,7 +1,7 @@
 import juice from 'juice';
 import { renderResponsiveLayout } from './layout.js';
 import { applyEmailStyle } from './style.js';
-import { renderTemplate } from './template.js';
+import { isTemplateData, renderTemplate } from './template.js';
 import type {
   CompiledEmailTemplate,
   CompileEmailTemplateOptions,
@@ -151,5 +151,5 @@ function isRenderContext(input: RenderData | EmailRenderContext): input is Email
 }
 
 function isOptionalPlainObject(value: unknown): boolean {
-  return value === undefined || (Boolean(value) && typeof value === 'object' && !Array.isArray(value));
+  return value === undefined || isTemplateData(value);
 }

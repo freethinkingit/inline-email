@@ -3,6 +3,7 @@ import type { RenderData, RenderTemplateOptions, TemplateData, TemplateValue } f
 const BLOCK_PATTERN = /{{#\s*([A-Za-z0-9_.-]+)\s*}}([\s\S]*?){{\/\s*\1\s*}}/g;
 const SLOT_PATTERN = /{{\s*slot:([A-Za-z0-9_.-]+)\s*}}/g;
 const VARIABLE_PATTERN = /{{\s*([A-Za-z0-9_.-]+|\.)\s*}}/g;
+const TEXT_PATTERN = new RegExp(`${SLOT_PATTERN.source}|${VARIABLE_PATTERN.source}`, 'g');
 
 export function renderTemplate(
   template: string,
@@ -40,14 +41,12 @@ function renderBlock(key: string, body: string, data: RenderData, escape: boolea
 }
 
 function renderText(text: string, data: RenderData, escape: boolean): string {
-  const pattern = new RegExp(`${SLOT_PATTERN.source}|${VARIABLE_PATTERN.source}`, 'g');
-
-  return text.replace(pattern, (_match, slotName: string | undefined, key: string | undefined) => {
+  return text.replace(TEXT_PATTERN, (_match, slotName: string | undefined, key: string) => {
     if (slotName !== undefined) {
       return data.slots?.[slotName] ?? '';
     }
 
-    const value = stringifyValue(resolveValue(data, key ?? ''));
+    const value = stringifyValue(resolveValue(data, key));
     return escape ? escapeHtml(value) : value;
   });
 }
@@ -90,7 +89,7 @@ function isTruthyObject(value: TemplateValue): value is TemplateData {
   return isTemplateData(value) && Object.keys(value).length > 0;
 }
 
-function isTemplateData(value: TemplateValue): value is TemplateData {
+export function isTemplateData(value: unknown): value is TemplateData {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
