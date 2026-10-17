@@ -19,7 +19,7 @@ Before opening a pull request:
 1. Keep changes focused on one behavior or feature.
 2. Add or update tests for rendering, template syntax, or CLI changes.
 3. Update `README.md` when the public API changes.
-4. Run `npm audit --audit-level=high`, `npm run build`, and `npm test`.
+4. Run `npm audit --audit-level=high --omit=dev`, `npm run build`, and `npm test`.
 
 ## Releases
 
