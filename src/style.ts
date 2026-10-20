@@ -93,6 +93,9 @@ function decodeHtmlAttribute(value: string): string {
   return value
     .replaceAll('&quot;', '"')
     .replaceAll('&#39;', "'")
+    .replaceAll('&#x27;', "'")
+    .replaceAll('&#x3D;', '=')
+    .replaceAll('&#x60;', '`')
     .replaceAll('&gt;', '>')
     .replaceAll('&lt;', '<')
     .replaceAll('&amp;', '&');

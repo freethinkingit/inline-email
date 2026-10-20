@@ -1,7 +1,8 @@
 import juice from 'juice';
+import { compileTemplate } from './engine.js';
 import { renderResponsiveLayout } from './layout.js';
 import { applyEmailStyle } from './style.js';
-import { isTemplateData, renderTemplate } from './template.js';
+import { isTemplateData } from './template.js';
 import type {
   CompiledEmailTemplate,
   CompileEmailTemplateOptions,
@@ -34,6 +35,10 @@ export async function compileEmailTemplate(
   });
   const subject = options.subject ?? '';
   const text = options.text ?? '';
+  const engine = { strict: options.strict, handlebars: options.handlebars };
+  const renderHtml = compileTemplate(html, { ...engine, escape: options.escape });
+  const renderSubject = compileTemplate(subject, { ...engine, escape: 'none' });
+  const renderText = compileTemplate(text, { ...engine, escape: 'none' });
 
   return {
     subject,
@@ -41,12 +46,11 @@ export async function compileEmailTemplate(
     text,
     render(input: RenderData | EmailRenderContext = {}): RenderedEmail {
       const { data, style } = normalizeRenderContext(input);
-      const renderedHtml = renderTemplate(html, data);
 
       return {
-        subject: renderTemplate(subject, data, { escape: false }),
-        html: applyEmailStyle(renderedHtml, style),
-        text: renderTemplate(text, data, { escape: false })
+        subject: renderSubject(data),
+        html: applyEmailStyle(renderHtml(data), style),
+        text: renderText(data)
       };
     }
   };
@@ -84,12 +88,34 @@ export async function inlineEmailHtml(
 ): Promise<string> {
   const transformedHtml = await applyTransforms(html, options);
   const juiceOptions = mergeJuiceOptions(options.juice);
+  const webResources = juiceOptions.webResources ?? {};
+  const resourceHtml = webResources.images || webResources.links || webResources.scripts || webResources.svgs
+    ? await inlineExternalResources(transformedHtml, { links: false, scripts: false, svgs: false, ...webResources })
+    : transformedHtml;
 
   if (css) {
-    return juice.inlineContent(transformedHtml, css, juiceOptions);
+    return juice.inlineContent(resourceHtml, css, juiceOptions);
   }
 
-  return juice(transformedHtml, juiceOptions);
+  return juice(resourceHtml, juiceOptions);
+}
+
+// juice exports inlineExternal at runtime but its bundled typings omit it.
+type InlineExternal = (
+  html: string,
+  webResources: NonNullable<JuiceOptions['webResources']>,
+  callback: (err: Error | null, html: string) => void
+) => void;
+
+function inlineExternalResources(
+  html: string,
+  webResources: NonNullable<JuiceOptions['webResources']>
+): Promise<string> {
+  const inlineExternal = (juice as unknown as { inlineExternal: InlineExternal }).inlineExternal;
+
+  return new Promise((resolve, reject) => {
+    inlineExternal(html, webResources, (err, result) => (err ? reject(err) : resolve(result)));
+  });
 }
 
 async function applyTransforms(

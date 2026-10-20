@@ -91,13 +91,17 @@ const examples = [
 ];
 
 describe('example templates', () => {
-  it('compile and render without leaking placeholders or layout tags', async () => {
+  it.each([
+    ['html', false],
+    ['strict', true]
+  ])('compile and render in %s mode without leaking placeholders or layout tags', async (_mode, strict) => {
     for (const example of examples) {
       const html = readFileSync(example.file, 'utf8');
       const compiled = await compileEmailTemplate({
         subject: 'Example email',
         html,
-        css: sharedCss
+        css: sharedCss,
+        strict
       });
 
       const email = compiled.render({

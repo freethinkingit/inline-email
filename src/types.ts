@@ -1,3 +1,5 @@
+import type { HelperDelegate } from 'handlebars';
+
 export type TemplateValue =
   | string
   | number
@@ -15,8 +17,18 @@ export interface RenderData extends TemplateData {
   slots?: Record<string, string | null | undefined>;
 }
 
+export type EscapeMode = 'html' | 'none';
+
+export interface EngineOptions {
+  helpers?: Record<string, HelperDelegate>;
+  partials?: Record<string, string>;
+  [compileOption: string]: unknown;
+}
+
 export interface RenderTemplateOptions {
-  escape?: boolean;
+  escape?: EscapeMode | boolean;
+  strict?: boolean;
+  handlebars?: EngineOptions;
 }
 
 export interface EmailStyleVariant {
@@ -39,7 +51,12 @@ export interface EmailRenderContext {
 export interface JuiceOptions {
   [key: string]: unknown;
   webResources?: {
-    images?: boolean;
+    images?: boolean | number;
+    links?: boolean | number;
+    scripts?: boolean | number;
+    svgs?: boolean | number;
+    relativeTo?: string;
+    strict?: boolean;
     [key: string]: unknown;
   };
 }
@@ -58,6 +75,9 @@ export interface CompileEmailTemplateOptions {
   responsive?: boolean | ResponsiveLayoutOptions;
   transform?: TemplateTransform;
   juice?: JuiceOptions;
+  escape?: EscapeMode | boolean;
+  strict?: boolean;
+  handlebars?: EngineOptions;
 }
 
 export interface RenderEmailOptions {
