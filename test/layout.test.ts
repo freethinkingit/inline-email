@@ -110,8 +110,24 @@ describe('renderResponsiveLayout', () => {
     expect(email.html.match(/class="ie-panel"/g)).toHaveLength(2);
     expect(email.html).toContain('data-ie-variant="info"');
     expect(email.html).toContain('data-ie-variant="success"');
+    expect(email.html).toContain('background:#eff8ff;border:1px solid #b2ddff;');
+    expect(email.html).toContain('background:#ecfdf3;border:1px solid #b8edc9;');
     expect(email.html).toContain('<p>Decision trails</p>');
     expect(email.html).toContain('<p>Handoff checks</p>');
+  });
+
+  it('fills a partial style tone from the built-in palette', async () => {
+    const compiled = await compileEmailTemplate({
+      html: '<email><container><section><panel tone="{{tone}}"><p>Ready</p></panel></section></container></email>'
+    });
+
+    const email = compiled.render({
+      data: { tone: 'info' },
+      style: { tones: { info: { background: '#123456' } } }
+    });
+
+    expect(email.html).toContain('background:#123456;border:1px solid #b2ddff;');
+    expect(email.html).toContain('color:#1849a9;');
   });
 
   it('can render repeated blocks with data and a small style object', async () => {
