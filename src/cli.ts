@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileEmailTemplate } from './compile.js';
@@ -205,7 +205,8 @@ Options:
 
 class CliError extends Error {}
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// npm starts the CLI through a symlinked bin entry, while import.meta.url is always the resolved file.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main(process.argv.slice(2)).catch((error: Error) => {
     console.error('\x1b[31m%s\x1b[0m', error.message);
     console.error(usage());

@@ -107,14 +107,22 @@ type InlineExternal = (
   callback: (err: Error | null, html: string) => void
 ) => void;
 
+// web-resource-inliner deletes " data-inline" wherever it appears, so an attribute merely starting with it
+// would be cut in half. Only its own data-inline and data-inline-ignore attributes are left for it to read.
+const INLINER_ATTRIBUTE_PREFIX = /(\s)data-(inline)(?=[\w-])(?!-ignore(?![\w-]))/gi;
+const PROTECTED_ATTRIBUTE_PREFIX = /(\s)data-ie-protected-(inline)/gi;
+
 function inlineExternalResources(
   html: string,
   webResources: NonNullable<JuiceOptions['webResources']>
 ): Promise<string> {
   const inlineExternal = (juice as unknown as { inlineExternal: InlineExternal }).inlineExternal;
+  const protectedHtml = html.replace(INLINER_ATTRIBUTE_PREFIX, '$1data-ie-protected-$2');
 
   return new Promise((resolve, reject) => {
-    inlineExternal(html, webResources, (err, result) => (err ? reject(err) : resolve(result)));
+    inlineExternal(protectedHtml, webResources, (err, result) =>
+      err ? reject(err) : resolve(result.replace(PROTECTED_ATTRIBUTE_PREFIX, '$1data-$2'))
+    );
   });
 }
 
