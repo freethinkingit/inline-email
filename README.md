@@ -476,19 +476,11 @@ npm test
 
 ## Release
 
-Releases publish to npm and create a GitHub Release. Push a version tag that matches `package.json`:
+A release is a version tag that matches `package.json`; GitHub Actions publishes it to npm with provenance and creates a GitHub Release. The steps, from the version bump to the tag, are in [CONTRIBUTING.md](CONTRIBUTING.md#releases).
 
 ```sh
-git tag v4.0.0
+git tag v4.0.0 origin/master
 git push origin v4.0.0
-```
-
-GitHub Actions runs audit, tests, build, package verification, publishes to npm with provenance, and creates a GitHub Release with the package tarball attached.
-
-Before the first automated release, configure npm Trusted Publishing for this repository and the `Release` workflow. For a one-time manual first publish, run:
-
-```sh
-npm publish
 ```
 
 ## What This Does Not Do
