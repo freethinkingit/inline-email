@@ -18,7 +18,7 @@ describe('renderResponsiveLayout', () => {
       </email>
     `);
 
-    expect(html).toContain('data-inline-email-preserve-style');
+    expect(html).toContain('data-ie-preserve-style');
     expect(html).toContain('.ie-column { display: block !important;');
     expect(html).toContain('class="ie-container"');
     expect(html).toContain('class="ie-section"');

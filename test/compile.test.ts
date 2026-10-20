@@ -182,6 +182,27 @@ describe('compileEmailTemplate', () => {
     ).rejects.toThrow(/missing\.png/);
   });
 
+  it('keeps the responsive style element when resource inlining is on', async () => {
+    const compiled = await compileEmailTemplate({
+      html: '<email><container><section><p>Hi</p></section></container></email>',
+      juice: { webResources: { images: true, relativeTo: rootDir } }
+    });
+
+    expect(compiled.html).toMatch(/<style(\s[^>]*)?>[^<]*@media/);
+    expect(compiled.html).not.toContain('<style-');
+  });
+
+  it('keeps attributes that start with data-inline when resource inlining is on', async () => {
+    const html = await inlineEmailHtml(
+      '<p data-inline-note="keep me" data-INLINE-x="y">Hi</p><img data-inline src="docs/assets/upgrade-offer.png">',
+      '',
+      { juice: { webResources: { links: true, relativeTo: rootDir } } }
+    );
+
+    expect(html).toContain('<p data-inline-note="keep me" data-inline-x="y">');
+    expect(html).toContain('data:image/png;base64');
+  });
+
   it('supports one-shot rendering', async () => {
     const email = await renderEmail({
       template: {

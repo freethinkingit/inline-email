@@ -1,4 +1,5 @@
-const RESPONSIVE_STYLE = `<style data-inline-email-preserve-style>
+// web-resource-inliner deletes any attribute text starting with data-inline, so the marker must not.
+const RESPONSIVE_STYLE = `<style data-ie-preserve-style>
 @media only screen and (max-width: 600px) {
   .ie-container { width: 100% !important; }
   .ie-section { padding-left: 20px !important; padding-right: 20px !important; }
@@ -226,7 +227,7 @@ function toneColors(tone: string): { accent: string; background: string; border:
 }
 
 function ensureResponsiveStyle(html: string): string {
-  if (html.includes('data-inline-email-preserve-style')) {
+  if (html.includes('data-ie-preserve-style')) {
     return html;
   }
 
