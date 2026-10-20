@@ -1,3 +1,4 @@
+import { BUILT_IN_TONES } from './layout.js';
 import type { EmailStyle, EmailStyleVariant } from './types.js';
 
 type StyleTarget = 'container' | 'content';
@@ -24,8 +25,13 @@ export function applyEmailStyle(html: string, style: EmailStyle = {}): string {
     );
 }
 
+// A tone that comes from data is still the literal {{tone}} when the layout picks colours at compile time,
+// so the built-in palette has to be applied here, at render, under whatever the caller's style overrides.
 function resolveVariantStyle(style: EmailStyle, variant: string): EmailStyleVariant | undefined {
-  return style.tones?.[variant];
+  const builtIn = Object.hasOwn(BUILT_IN_TONES, variant) ? BUILT_IN_TONES[variant] : undefined;
+  const override = style.tones?.[variant];
+
+  return builtIn || override ? { ...builtIn, ...override } : undefined;
 }
 
 function renderComponentStyle(

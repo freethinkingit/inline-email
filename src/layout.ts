@@ -211,19 +211,18 @@ function renderSpacer(size: number): string {
 </table>`;
 }
 
-function toneColors(tone: string): { accent: string; background: string; border: string; text: string } {
-  switch (tone) {
-    case 'success':
-      return { accent: '#16a34a', background: '#ecfdf3', border: '#b8edc9', text: '#17643a' };
-    case 'danger':
-      return { accent: '#b42318', background: '#fef3f2', border: '#fecdca', text: '#7a271a' };
-    case 'info':
-      return { accent: '#1570ef', background: '#eff8ff', border: '#b2ddff', text: '#1849a9' };
-    case 'warning':
-      return { accent: '#f2a900', background: '#fff7e8', border: '#fedf89', text: '#4f3a0b' };
-    default:
-      return { accent: '#667085', background: '#f7f9fc', border: '#d8dee8', text: '#344054' };
-  }
+type ToneColors = { accent: string; background: string; border: string; text: string };
+
+export const BUILT_IN_TONES: Readonly<Record<string, ToneColors>> = {
+  neutral: { accent: '#667085', background: '#f7f9fc', border: '#d8dee8', text: '#344054' },
+  info: { accent: '#1570ef', background: '#eff8ff', border: '#b2ddff', text: '#1849a9' },
+  success: { accent: '#16a34a', background: '#ecfdf3', border: '#b8edc9', text: '#17643a' },
+  warning: { accent: '#f2a900', background: '#fff7e8', border: '#fedf89', text: '#4f3a0b' },
+  danger: { accent: '#b42318', background: '#fef3f2', border: '#fecdca', text: '#7a271a' }
+};
+
+function toneColors(tone: string): ToneColors {
+  return Object.hasOwn(BUILT_IN_TONES, tone) ? BUILT_IN_TONES[tone] : BUILT_IN_TONES.neutral;
 }
 
 function ensureResponsiveStyle(html: string): string {
