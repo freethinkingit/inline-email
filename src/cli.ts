@@ -1,20 +1,29 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileEmailTemplate } from './compile.js';
+import type { EmailRenderContext, RenderData } from './types.js';
 
 interface CliOptions {
   html?: string;
   css: string[];
   out?: string;
-  noInlineImages: boolean;
+  data?: string;
+  strict: boolean;
+  inlineImages: boolean;
+  deprecatedFlag: boolean;
   force: boolean;
   help: boolean;
 }
 
 export async function main(argv: string[]): Promise<void> {
   const options = parseArgs(argv);
+
+  if (options.deprecatedFlag) {
+    console.error('--noInlineImages is deprecated and has no effect: images are no longer inlined by default. Use --inlineImages to inline them.');
+  }
 
   if (options.help) {
     console.log(usage());
@@ -28,6 +37,10 @@ export async function main(argv: string[]): Promise<void> {
   assertReadable(options.html, 'HTML file path references a file that does not exist.');
   options.css.forEach((file) => assertReadable(file, 'CSS file path references a file that does not exist.'));
 
+  if (options.data) {
+    assertReadable(options.data, `Data file ${options.data} does not exist.`);
+  }
+
   if (options.out && existsSync(options.out) && !options.force) {
     throw new CliError('Out file path already exists. Use --force or -f to overwrite it.');
   }
@@ -37,14 +50,16 @@ export async function main(argv: string[]): Promise<void> {
   const compiled = await compileEmailTemplate({
     html,
     css,
+    strict: options.strict,
     juice: {
       webResources: {
-        images: !options.noInlineImages
+        images: options.inlineImages,
+        relativeTo: dirname(resolve(options.html))
       }
     }
   });
 
-  const output = compiled.html;
+  const output = options.data ? compiled.render(readData(options.data)).html : compiled.html;
 
   if (options.out) {
     writeFileSync(options.out, output, 'utf8');
@@ -57,7 +72,9 @@ export async function main(argv: string[]): Promise<void> {
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     css: [],
-    noInlineImages: false,
+    strict: false,
+    inlineImages: false,
+    deprecatedFlag: false,
     force: false,
     help: false
   };
@@ -78,8 +95,18 @@ export function parseArgs(argv: string[]): CliOptions {
         options.out = readValue(argv, index, arg);
         index += 1;
         break;
+      case '--data':
+        options.data = readValue(argv, index, arg);
+        index += 1;
+        break;
+      case '--strict':
+        options.strict = true;
+        break;
+      case '--inlineImages':
+        options.inlineImages = true;
+        break;
       case '--noInlineImages':
-        options.noInlineImages = true;
+        options.deprecatedFlag = true;
         break;
       case '--force':
       case '-f':
@@ -140,6 +167,22 @@ function assertReadable(path: string, message: string): void {
   }
 }
 
+function readData(path: string): RenderData | EmailRenderContext {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new CliError(`Data file ${path} could not be read as JSON: ${(error as Error).message}`);
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new CliError(`Data file ${path} must contain a JSON object.`);
+  }
+
+  return parsed as RenderData | EmailRenderContext;
+}
+
 function usage(): string {
   return `Inline Email
 
@@ -152,7 +195,10 @@ Options:
   --html <file>          Input HTML file. A positional input file is also supported.
   --css <files...>       CSS files to inline.
   --out, -o <file>       Write output to a file instead of stdout.
-  --noInlineImages       Disable image web resource inlining.
+  --inlineImages         Embed referenced images as data URIs. Off by default.
+  --noInlineImages       Deprecated and ignored; images are no longer inlined by default.
+  --data <file>          Render the template with this JSON file and write the rendered HTML.
+  --strict               With --data, fail on a field the template names but the data does not define.
   --force, -f            Overwrite the output file.
   --help, -h             Show this help text.`;
 }

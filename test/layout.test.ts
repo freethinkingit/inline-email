@@ -63,7 +63,7 @@ describe('renderResponsiveLayout', () => {
 
     expect(compiled.html).toContain('class="ie-button"');
     expect(compiled.render({ url: 'https://example.com?a=1&b=2' }).html).toContain(
-      'href="https://example.com?a=1&amp;b=2"'
+      'href="https://example.com?a&#x3D;1&amp;b&#x3D;2"'
     );
   });
 

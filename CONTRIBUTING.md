@@ -23,6 +23,6 @@ Before opening a pull request:
 
 ## Releases
 
-Package releases are created by pushing a version tag that matches `package.json`, for example `v3.0.0`.
+Package releases are created by pushing a version tag that matches `package.json`, for example `v4.0.0`.
 
 The release workflow publishes `inline-email` to npm and creates a GitHub Release with the package tarball attached.

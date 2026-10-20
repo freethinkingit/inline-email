@@ -108,7 +108,7 @@ describe('renderTemplate', () => {
     );
   });
 
-  it('renders nothing for falsy block values and the body once for truthy scalars', () => {
+  it('renders bare blocks over 0 and empty string, nothing for false and missing, and the body once for truthy scalars', () => {
     expect(
       renderTemplate('{{#zero}}0{{/zero}}{{#empty}}e{{/empty}}{{#no}}n{{/no}}{{#missing}}m{{/missing}}{{#yes}}{{name}}{{/yes}}', {
         zero: 0,
@@ -117,7 +117,7 @@ describe('renderTemplate', () => {
         yes: 'on',
         name: 'Dan'
       })
-    ).toBe('Dan');
+    ).toBe('0eDan');
   });
 
   it('renders missing and nested missing keys as empty strings', () => {
@@ -170,9 +170,248 @@ describe('renderTemplate', () => {
     ).toBe('<li>Parent > Child</li><li>Leaf</li>');
   });
 
-  it('leaves stray close tags and unclosed blocks as text', () => {
-    expect(renderTemplate('{{/items}}{{#items}}{{name}}', { items: [{ name: 'A' }], name: 'top' })).toBe(
-      '{{/items}}{{#items}}top'
+  it('throws a parse error for stray close tags and unclosed blocks', () => {
+    expect(() => renderTemplate('{{/items}}{{#items}}{{name}}', { items: [{ name: 'A' }], name: 'top' })).toThrow(
+      /Parse error on line 1/
     );
+    expect(() => renderTemplate('{{#items}}{{name}}', { items: [{ name: 'A' }] })).toThrow(/Parse error on line 1/);
+  });
+});
+
+const HOSTILE_VALUES = ['{{secret}}', '{{slot:x}}', '{{#a}}x{{/a}}', '{{{slots.x}}}', '{{'];
+
+const DECOYS = {
+  secret: 'TOPSECRET',
+  a: true,
+  x: 'X',
+  slots: { x: '<b>RAW</b>' }
+};
+
+type HostilePosition = {
+  position: string;
+  template: string;
+  data: (value: string) => Parameters<typeof renderTemplate>[1];
+};
+
+const HOSTILE_POSITIONS: HostilePosition[] = [
+  { position: 'at top level', template: '[{{v}}]', data: (value) => ({ ...DECOYS, v: value }) },
+  {
+    position: 'inside a block',
+    template: '{{#outer}}[{{v}}]{{/outer}}',
+    data: (value) => ({ ...DECOYS, outer: [{ v: value }] })
+  },
+  {
+    position: 'inside a nested block',
+    template: '{{#outer}}{{#inner}}[{{v}}]{{/inner}}{{/outer}}',
+    data: (value) => ({ ...DECOYS, outer: [{ inner: [{ v: value }] }] })
+  },
+  {
+    position: 'inside a scalar block with a dot',
+    template: '{{#list}}[{{.}}]{{/list}}',
+    data: (value) => ({ ...DECOYS, list: [value] })
+  },
+  {
+    position: 'inside slot content',
+    template: '[{{slot:body}}]',
+    data: (value) => ({ ...DECOYS, slots: { ...DECOYS.slots, body: value } })
+  }
+];
+
+const HOSTILE_CASES = HOSTILE_POSITIONS.flatMap((position) => HOSTILE_VALUES.map((value) => ({ ...position, value })));
+
+describe('Property 1: Rendered values are inert', () => {
+  it.each(HOSTILE_CASES)('renders $value literally $position', ({ template, data, value }) => {
+    const output = renderTemplate(template, data(value));
+
+    expect(output).toBe(`[${value}]`);
+    expect(output).not.toContain('TOPSECRET');
+    expect(output).not.toContain('RAW');
+  });
+});
+
+const STRICT_EQUAL_CASES: {
+  name: string;
+  template: string;
+  data: Parameters<typeof renderTemplate>[1];
+  options?: Parameters<typeof renderTemplate>[2];
+}[] = [
+  { name: 'escaped variable', template: '<p>Hello {{firstName}}</p>', data: { firstName: '<Dan>' } },
+  {
+    name: 'trusted slot',
+    template: '<section>{{slot:summary}}</section>',
+    data: { slots: { summary: '<strong>Approved</strong>' } }
+  },
+  {
+    name: 'repeated block',
+    template: '<ul>{{#items}}<li>{{label}}</li>{{/items}}</ul>',
+    data: { items: [{ label: 'One' }, { label: 'Two' }] }
+  },
+  {
+    name: 'plain-text output',
+    template: 'Hi {{name}}, Tom & Jerry',
+    data: { name: "O'Brien" },
+    options: { escape: false }
+  },
+  {
+    name: 'template syntax in block item values',
+    template: '{{#items}}<li>{{label}}</li>{{/items}}',
+    data: { secret: 'TOPSECRET', items: [{ label: '{{secret}}' }] }
+  },
+  {
+    name: 'slot syntax in block item values',
+    template: '{{#items}}<li>{{label}}</li>{{/items}}',
+    data: { items: [{ label: '{{slot:admin}}' }], slots: { admin: '<b>raw html</b>' } }
+  },
+  {
+    name: 'template syntax in slot content',
+    template: '<div>{{slot:body}}</div>',
+    data: { secret: 'TOPSECRET', slots: { body: '<b>{{secret}}</b>' } }
+  },
+  {
+    name: 'nested data, scalar block and dot',
+    template: '{{#show}}{{#tags}}[{{.}}]{{/tags}}{{#user}}{{name}}{{/user}}{{/show}}',
+    data: { show: true, tags: ['a', '<b>'], user: { name: 'Dan' } }
+  },
+  {
+    name: 'a complete block in a value literal',
+    template: '{{#items}}<li>{{label}}</li>{{/items}}',
+    data: { secret: 'TOPSECRET', items: [{ label: '{{#items}}{{secret}}{{/items}}' }] }
+  },
+  {
+    name: 'slot syntax two blocks deep',
+    template: '{{#a}}{{#b}}<i>{{v}}</i>{{/b}}{{/a}}',
+    data: { a: [{ b: [{ v: '{{slot:x}}' }] }], slots: { x: '<b>raw</b>' } }
+  },
+  {
+    name: 'template syntax in scalar items rendered with a dot',
+    template: '{{#items}}[{{.}}]{{/items}}',
+    data: { secret: 'TOPSECRET', items: ['{{secret}}'] }
+  },
+  {
+    name: 'value literal inside a block',
+    template: '{{#items}}<li>{{label}}</li>{{/items}}{{secret}}',
+    data: { secret: 'A', items: [{ label: '{{/items}}{{secret}}{{#items}}' }] }
+  },
+  {
+    name: 'a value next to template text',
+    template: '{{#items}}<p>{{a}}x}}</p>{{/items}}',
+    data: { x: 'X', items: [{ a: '{{' }] }
+  },
+  {
+    name: 'adjacent blocks',
+    template: '{{#a}}A{{n}}{{/a}} mid {{y}} {{#b}}B{{n}}{{/b}}',
+    data: { a: [{ n: 1 }], b: [{ n: 2 }], y: 'Y' }
+  },
+  {
+    name: 'plain-text mode inside blocks',
+    template: '{{#items}}{{v}}{{/items}}',
+    data: { items: [{ v: '<&>' }] },
+    options: { escape: false }
+  },
+  { name: 'inverted block over an empty list', template: '{{^items}}none{{/items}}', data: { items: [] } },
+  { name: 'inverted block over a present list', template: '{{^items}}none{{/items}}', data: { items: [1] } },
+  { name: 'same-name nesting', template: '{{#a}}[{{#a}}x{{/a}}]{{/a}}', data: { a: [{ a: [1, 2] }] } },
+  {
+    name: 'recursive item lists',
+    template: '{{#items}}<li>{{name}}{{#items}} > {{name}}{{/items}}</li>{{/items}}',
+    data: { items: [{ name: 'Parent', items: [{ name: 'Child' }] }, { name: 'Leaf', items: [] }] }
+  },
+  {
+    name: 'enclosing context through ../ and @root.',
+    template: '{{#items}}{{label}}/{{../owner}}/{{@root.owner}}{{/items}}',
+    data: { owner: 'Dan', items: [{ label: 'One' }] }
+  }
+];
+
+const STRICT_THROW_CASES = [
+  {
+    name: 'a missing top-level variable',
+    template: '[{{name}}]',
+    data: {},
+    message: /"name" not defined/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'a missing leaf',
+    template: '[{{user.nmae}}]',
+    data: { user: {} },
+    message: /"nmae" not defined/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'a missing first segment, where Handlebars names the leaf and not the missing segment',
+    template: '[{{custmer.name}}]',
+    data: {},
+    message: /"name" not defined in undefined/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'a path three segments deep through a missing object, rethrown with a hint',
+    template: '[{{a.b.c}}]',
+    data: {},
+    message: /^Strict render failed: Cannot read properties of undefined .*dotted path/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'a missing block name',
+    template: '[{{#blk}}x{{/blk}}]',
+    data: {},
+    message: /"blk" not defined/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'a missing inverted block name',
+    template: '[{{^blk}}x{{/blk}}]',
+    data: {},
+    message: /"blk" not defined/,
+    nonStrict: '[x]'
+  },
+  {
+    name: 'a missing row key inside each',
+    template: '{{#each rows}}[{{nmae}}]{{/each}}',
+    data: { rows: [{ name: 'a' }] },
+    message: /"nmae" not defined/,
+    nonStrict: '[]'
+  },
+  {
+    name: 'an enclosing-context name read without ../ or @root.',
+    template: '{{#items}}[{{owner}}]{{/items}}',
+    data: { owner: 'Dan', items: [{ label: 'One' }] },
+    message: /"owner" not defined/,
+    nonStrict: '[Dan]'
+  }
+];
+
+const STRICT_SAFE_CASES = [
+  { name: 'a null-valued field', template: '[{{name}}]', data: { name: null }, expected: '[]' },
+  { name: 'a missing slot', template: '[{{slot:x}}]', data: {}, expected: '[]' },
+  { name: 'an if over a missing name', template: '[{{#if missing}}y{{/if}}]', data: {}, expected: '[]' },
+  { name: 'an each over a missing name', template: '[{{#each missing}}y{{/each}}]', data: {}, expected: '[]' },
+  {
+    name: 'a ../ reference',
+    template: '{{#items}}[{{../owner}}]{{/items}}',
+    data: { owner: 'Dan', items: [{}] },
+    expected: '[Dan]'
+  },
+  {
+    name: 'an @root. reference',
+    template: '{{#items}}[{{@root.owner}}]{{/items}}',
+    data: { owner: 'Dan', items: [{}] },
+    expected: '[Dan]'
+  }
+];
+
+describe('Property 4: Strict is a pure refinement', () => {
+  it.each(STRICT_EQUAL_CASES)('renders $name the same with strict on', ({ template, data, options }) => {
+    expect(renderTemplate(template, data, { ...options, strict: true })).toBe(renderTemplate(template, data, options));
+  });
+
+  it.each(STRICT_THROW_CASES)('throws naming $name', ({ template, data, message, nonStrict }) => {
+    expect(() => renderTemplate(template, data, { strict: true })).toThrow(message);
+    expect(renderTemplate(template, data)).toBe(nonStrict);
+  });
+
+  it.each(STRICT_SAFE_CASES)('does not throw for $name', ({ template, data, expected }) => {
+    expect(renderTemplate(template, data, { strict: true })).toBe(expected);
   });
 });

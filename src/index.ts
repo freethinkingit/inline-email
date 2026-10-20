@@ -13,6 +13,8 @@ export type {
   EmailRenderContext,
   EmailStyle,
   EmailStyleVariant,
+  EngineOptions,
+  EscapeMode,
   RenderData,
   RenderedEmail,
   RenderEmailOptions,

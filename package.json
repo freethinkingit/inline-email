@@ -1,6 +1,6 @@
 {
   "name": "inline-email",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "description": "Modern email template compilation and rendering for safe HTML email.",
   "type": "module",
   "main": "dist/index.js",
@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "docs/assets",
+    "MIGRATION.md",
     "README.md",
     "LICENSE.md"
   ],
@@ -38,6 +39,7 @@
   "author": "Dan Sabin <dan@freethinking.it>",
   "license": "MIT",
   "dependencies": {
+    "handlebars": "^4.7.9",
     "juice": "^12.1.0"
   },
   "devDependencies": {
