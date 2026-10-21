@@ -1,0 +1,19 @@
+# inline-email
+
+> inline-email turns HTML and CSS into email-safe templates you compile once and render per send. It is built to be simple and durable, to work across many email clients, and to make emails clear and easy. It is for teams that treat email as a necessary part of their product, worry about dependency bloat, and do not want to build on juice from scratch.
+
+Templates render with Handlebars, with escape modes `html` and `none`, an optional strict mode, helpers and partials through the `handlebars` option, and `{{slot:name}}` for trusted HTML. Layout tags such as `<section>`, `<columns>` and `<button>` compile to table markup, and CSS is inlined with juice at compile time, with optional image and resource inlining through `juice.webResources`. The `inline-email` CLI compiles a file and, with `--data`, renders it as a local preview. The package is ESM-only and supports Node 22, 24 and 26.
+
+## Docs
+
+- [README](https://github.com/freethinkingit/inline-email/blob/master/README.md): What inline-email is for, a quickstart, when to use it and where to go next; start here.
+- [Send a transactional email](https://github.com/freethinkingit/inline-email/blob/master/docs/guides/transactional.md): Build a welcome email with a trusted-HTML slot, render it per user and lock it with a strict-mode test.
+- [Preview a template with the CLI](https://github.com/freethinkingit/inline-email/blob/master/docs/guides/cli-preview.md): Write a template and sample data, render a preview file with `inline-email` and iterate on the design.
+- [Marketing email: helpers, partials and an inlined logo](https://github.com/freethinkingit/inline-email/blob/master/docs/guides/marketing.md): Build a launch announcement with custom helpers, a shared signature partial and an embedded logo.
+- [Build a data-heavy digest email](https://github.com/freethinkingit/inline-email/blob/master/docs/guides/digest.md): Build a weekly digest from an array of rows with loops, conditions and a number-formatting helper.
+- [Reference](https://github.com/freethinkingit/inline-email/blob/master/docs/reference.md): Full library API, template syntax, layout tags and CLI options.
+- [Migration guide](https://github.com/freethinkingit/inline-email/blob/master/MIGRATION.md): Every place 4.0 behaves differently from 3.x, with before and after examples.
+
+## Package
+
+- [inline-email on npm](https://www.npmjs.com/package/inline-email): The published package, its versions and install command.

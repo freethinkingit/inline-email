@@ -1,0 +1,28 @@
+<email>
+  <preview>Order {{orderNumber}} is confirmed.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <p class="eyebrow">Order {{orderNumber}}</p>
+      <h1 class="headline">Thanks for your order, {{firstName}}</h1>
+      <spacer size="18" />
+      <p class="body-copy">Here is what you ordered. We will email you again when it ships.</p>
+      <spacer size="24" />
+      <table class="items" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        {{#each items}}
+        <tr>
+          <td class="item-name">{{name}} &times; {{quantity}}</td>
+          <td class="item-price" align="right">{{price}}</td>
+        </tr>
+        {{/each}}
+      </table>
+      <divider />
+      <p class="summary-line">Subtotal: {{subtotal}}</p>
+      {{#if discount}}
+      <p class="summary-line discount">{{discount.label}}: -{{discount.amount}}</p>
+      {{/if}}
+      <p class="summary-total">Total: {{total}}</p>
+      <spacer size="28" />
+      <button href="{{orderUrl}}" background="#17202a">View your order</button>
+    </section>
+  </container>
+</email>

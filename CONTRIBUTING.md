@@ -18,7 +18,7 @@ Before opening a pull request:
 
 1. Keep changes focused on one behavior or feature.
 2. Add or update tests for rendering, template syntax, or CLI changes.
-3. Update `README.md` when the public API changes.
+3. Update the docs when the public API or template syntax changes: the API and syntax are documented in `docs/reference.md`, and the task guides in `docs/guides/`. Code a guide shows lives under `examples/guides/` and is quoted byte for byte, which `test/docs.test.ts` checks.
 4. Run `npm audit --audit-level=high --omit=dev`, `npm run build`, and `npm test`.
 
 ## Releases

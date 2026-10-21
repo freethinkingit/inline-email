@@ -1,0 +1,18 @@
+<email>
+  <preview>Welcome to ACME, {{firstName}}.</preview>
+  <container>
+    <section padding="32">
+      <h1 class="headline">Hi {{firstName}}, welcome to ACME.</h1>
+      {{slot:summary}}
+      <p>Three things to try first:</p>
+      <ul>
+        {{#items}}
+        <li>{{this}}</li>
+        {{/items}}
+      </ul>
+      <spacer size="24" />
+      <button href="{{appUrl}}">Open ACME</button>
+    </section>
+    <footer>Sent by ACME</footer>
+  </container>
+</email>

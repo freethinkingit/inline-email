@@ -1,0 +1,46 @@
+<email>
+  <preview>Your weekly digest for {{workspaceName}} is ready.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <p class="eyebrow">{{periodLabel}}</p>
+      <h1 class="headline">Weekly digest for {{workspaceName}}</h1>
+      <spacer size="24" />
+      {{#if rows.length}}
+      <table width="100%" cellpadding="6" cellspacing="0">
+        <tr>
+          <th align="left">#</th>
+          <th align="left">Item</th>
+          <th align="left">Owner</th>
+          <th align="right">Count</th>
+        </tr>
+        {{#each rows}}
+        <tr>
+          <td>{{position @index}}</td>
+          <td>{{title}}{{#unless done}} <span class="muted">(still open)</span>{{/unless}}</td>
+          <td>{{owner}}</td>
+          <td align="right">{{formatNumber count}}</td>
+        </tr>
+        {{#if done}}
+        <tr>
+          <td colspan="4">
+            <panel tone="{{tone}}">
+              <p class="muted">{{title}} is done.</p>
+            </panel>
+          </td>
+        </tr>
+        {{/if}}
+        {{#unless @last}}
+        <tr>
+          <td colspan="4"><divider /></td>
+        </tr>
+        {{/unless}}
+        {{/each}}
+      </table>
+      {{else}}
+      <p class="body-copy">Nothing moved in {{workspaceName}} this week.</p>
+      {{/if}}
+      <spacer size="24" />
+      <p class="feature-title">Total: {{formatNumber total}}</p>
+    </section>
+  </container>
+</email>

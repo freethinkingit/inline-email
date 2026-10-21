@@ -1,0 +1,53 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.eyebrow {
+  color: #516070;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.headline {
+  color: #17202a;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.16;
+  margin: 0;
+}
+
+.body-copy {
+  color: #344054;
+  font-size: 16px;
+  line-height: 1.58;
+  margin: 0;
+}
+
+.item-name,
+.item-price {
+  border-bottom: 1px solid #eaecf0;
+  color: #344054;
+  font-size: 15px;
+  padding: 10px 0;
+}
+
+.summary-line {
+  color: #667085;
+  font-size: 15px;
+  margin: 0 0 6px;
+  text-align: right;
+}
+
+.discount {
+  color: #027a48;
+}
+
+.summary-total {
+  color: #17202a;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 8px 0 0;
+  text-align: right;
+}
