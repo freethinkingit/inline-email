@@ -107,7 +107,7 @@ Run `node send.mjs`. It prints the rendered email, trimmed here to the meaningfu
 | --- | --- |
 | ![Responsive usage digest email](https://raw.githubusercontent.com/freethinkingit/inline-email/master/docs/assets/usage-digest.png) | ![Responsive upgrade offer email](https://raw.githubusercontent.com/freethinkingit/inline-email/master/docs/assets/upgrade-offer.png) |
 
-The repo includes rendered examples for auth, onboarding, product marketing, usage digests, and upgrade offers. Run `npm run examples` to regenerate them into `examples/out`.
+The repo includes rendered examples for auth, onboarding, product marketing, usage digests, upgrade offers, and the email each guide builds. Run `npm run examples` to regenerate them into `examples/out`.
 
 To open the full example gallery locally:
 

@@ -5,7 +5,11 @@ const examples = [
   'marketing-product-launch.html',
   'marketing-feature-roundup.html',
   'marketing-usage-digest.html',
-  'marketing-upgrade-offer.html'
+  'marketing-upgrade-offer.html',
+  'guides-transactional.html',
+  'guides-cli-preview.html',
+  'guides-marketing.html',
+  'guides-digest.html'
 ];
 
 test.describe('rendered email examples', () => {

@@ -2,6 +2,8 @@
 
 This guide shows you how to write a template and sample data, render them to a preview file with `inline-email`, and iterate on the design; it takes about 10 minutes.
 
+![The order confirmation this guide previews](../assets/guides/cli-preview.png)
+
 You can follow it in your own project or in a checkout of this repository.
 
 ## The template

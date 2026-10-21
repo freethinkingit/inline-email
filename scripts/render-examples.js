@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,10 +52,6 @@ const style = {
     }
   }
 };
-
-const numberFormat = new Intl.NumberFormat('en-US');
-const formatNumber = (value) => numberFormat.format(value);
-const position = (index) => index + 1;
 
 const examples = [
   {
@@ -180,15 +177,37 @@ const examples = [
         'Unlock longer workspace history and richer reporting.'
       ]
     }
-  },
-  {
-    category: 'Guides',
-    dir: 'guides/digest',
-    file: 'digest.html',
-    title: 'Weekly Digest',
-    data: JSON.parse(readFileSync(join(examplesDir, 'guides', 'digest', 'data.json'), 'utf8')),
-    handlebars: { helpers: { formatNumber, position } }
   }
+];
+
+const guidesDir = join(examplesDir, 'guides');
+const runGuideScript = (guide) =>
+  JSON.parse(execFileSync(process.execPath, [join(guidesDir, guide, 'send.mjs')], { cwd: rootDir, encoding: 'utf8' }));
+const cliPreviewDir = join(guidesDir, 'cli-preview');
+
+// Each guide's email is rendered by the guide's own script or CLI command, so the gallery shows exactly what the guide produces.
+const guideEmails = [
+  { title: 'Transactional Welcome', outputFile: 'guides-transactional.html', html: () => runGuideScript('transactional')[0].html },
+  {
+    title: 'CLI Preview Order',
+    outputFile: 'guides-cli-preview.html',
+    html: () =>
+      execFileSync(
+        process.execPath,
+        [
+          join(rootDir, 'dist', 'cli.js'),
+          join(cliPreviewDir, 'email.html'),
+          '--css',
+          join(cliPreviewDir, 'email.css'),
+          '--data',
+          join(cliPreviewDir, 'data.json'),
+          '--strict'
+        ],
+        { encoding: 'utf8' }
+      )
+  },
+  { title: 'Marketing Launch', outputFile: 'guides-marketing.html', html: () => runGuideScript('marketing').html },
+  { title: 'Weekly Digest', outputFile: 'guides-digest.html', html: () => runGuideScript('digest').html }
 ];
 
 async function main() {
@@ -206,17 +225,21 @@ async function main() {
     const compiled = await compileEmailTemplate({
       subject: example.title,
       html,
-      css: sharedCss,
-      handlebars: example.handlebars
+      css: sharedCss
     });
     const email = compiled.render({
       data: { ...sharedData, ...example.data },
       style
     });
-    const outputFile = `${example.dir.replaceAll('/', '-')}-${basename(example.file)}`;
+    const outputFile = `${example.dir}-${basename(example.file)}`;
 
     writeFileSync(join(outputDir, outputFile), email.html, 'utf8');
     rendered.push({ ...example, outputFile });
+  }
+
+  for (const guide of guideEmails) {
+    writeFileSync(join(outputDir, guide.outputFile), guide.html(), 'utf8');
+    rendered.push({ category: 'Guides', title: guide.title, outputFile: guide.outputFile });
   }
 
   writeFileSync(join(outputDir, 'index.html'), renderIndex(rendered), 'utf8');

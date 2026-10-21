@@ -2,6 +2,8 @@
 
 This guide builds a welcome email with a slot for trusted HTML, renders it per user, and locks it with a strict-mode test; it takes about 15 minutes.
 
+![The welcome email this guide builds](../assets/guides/transactional.png)
+
 In your own project, install the library and, for the test, vitest:
 
 ```sh

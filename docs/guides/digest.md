@@ -2,6 +2,8 @@
 
 This guide builds a weekly digest from an array of twelve rows, with loops, conditions and a number-formatting helper, and takes about 15 minutes.
 
+![The weekly digest this guide builds](../assets/guides/digest.png)
+
 The files live in `examples/guides/digest/`. `data.json` holds a workspace name, a period label, a total and twelve rows, each with a title, an owner, a count, a tone and a `done` flag:
 
 ```json file=examples/guides/digest/data.json
@@ -183,6 +185,6 @@ It prints the subject, the html and the text as JSON. Trimmed, the text part and
 
 The html has twelve rows, eleven dividers and the line `Total: 18,432`.
 
-The digest is also in the example gallery, under "Guides": run `npm run examples:serve`, then open `http://localhost:4173`.
+The digest is also in the example gallery, with every guide's email, under "Guides": run `npm run examples:serve`, then open `http://localhost:4173`.
 
 Next: read the [reference](../reference.md) for the full template syntax, or go back to the [README](../../README.md).

@@ -2,6 +2,8 @@
 
 This guide builds a launch announcement with custom helpers, a shared signature partial and a logo embedded in the email, in about 15 minutes.
 
+![The launch email this guide builds, with the inlined logo](../assets/guides/marketing.png)
+
 You need a checkout of inline-email, built with `npm run build`, or an app with `inline-email` installed.
 The script also imports `handlebars` itself, so install it in your app with `npm install handlebars` rather than relying on inline-email's copy.
 
