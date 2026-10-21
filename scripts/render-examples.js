@@ -52,6 +52,10 @@ const style = {
   }
 };
 
+const numberFormat = new Intl.NumberFormat('en-US');
+const formatNumber = (value) => numberFormat.format(value);
+const position = (index) => index + 1;
+
 const examples = [
   {
     category: 'Transactional',
@@ -176,6 +180,14 @@ const examples = [
         'Unlock longer workspace history and richer reporting.'
       ]
     }
+  },
+  {
+    category: 'Guides',
+    dir: 'guides/digest',
+    file: 'digest.html',
+    title: 'Weekly Digest',
+    data: JSON.parse(readFileSync(join(examplesDir, 'guides', 'digest', 'data.json'), 'utf8')),
+    handlebars: { helpers: { formatNumber, position } }
   }
 ];
 
@@ -194,13 +206,14 @@ async function main() {
     const compiled = await compileEmailTemplate({
       subject: example.title,
       html,
-      css: sharedCss
+      css: sharedCss,
+      handlebars: example.handlebars
     });
     const email = compiled.render({
       data: { ...sharedData, ...example.data },
       style
     });
-    const outputFile = `${example.dir}-${basename(example.file)}`;
+    const outputFile = `${example.dir.replaceAll('/', '-')}-${basename(example.file)}`;
 
     writeFileSync(join(outputDir, outputFile), email.html, 'utf8');
     rendered.push({ ...example, outputFile });

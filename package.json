@@ -1,7 +1,7 @@
 {
   "name": "inline-email",
   "version": "4.0.1",
-  "description": "Modern email template compilation and rendering for safe HTML email.",
+  "description": "Compile HTML and CSS into email-safe templates and render them with Handlebars per send. Node library and CLI.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,8 +16,8 @@
   },
   "files": [
     "dist",
-    "docs/assets",
     "MIGRATION.md",
+    "llms.txt",
     "README.md",
     "LICENSE.md"
   ],
@@ -55,11 +55,12 @@
   "keywords": [
     "email",
     "html-email",
-    "inline",
-    "template",
     "email-templates",
+    "transactional-email",
+    "handlebars",
+    "juice",
+    "css-inlining",
     "responsive-email",
-    "ses",
     "cli"
   ],
   "bugs": {
@@ -67,6 +68,6 @@
   },
   "homepage": "https://github.com/freethinkingit/inline-email#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }

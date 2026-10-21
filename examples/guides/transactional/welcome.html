@@ -1,0 +1,16 @@
+<email>
+  <preview>Welcome to ACME, {{firstName}}. Here is what is ready for you.</preview>
+  <container>
+    <section padding="36" background="#ffffff">
+      <p class="eyebrow">Welcome to ACME</p>
+      <h1 class="headline">Hi {{firstName}}, your workspace is ready.</h1>
+      <spacer size="18" />
+      <div class="summary">{{slot:summary}}</div>
+      <spacer size="28" />
+      <button href="{{dashboardUrl}}" background="#246BFE">Open your dashboard</button>
+    </section>
+    <footer padding="24" background="#f7f9fc">
+      <p class="muted">You are receiving this because you signed up for ACME.</p>
+    </footer>
+  </container>
+</email>

@@ -1,0 +1,19 @@
+{
+  "workspaceName": "Product Operations",
+  "periodLabel": "Week of October 12, 2026",
+  "total": 18432,
+  "rows": [
+    { "title": "Onboarding checklist", "owner": "Avery", "count": 3120, "tone": "success", "done": true },
+    { "title": "Billing migration", "owner": "Jordan", "count": 2875, "tone": "warning", "done": false },
+    { "title": "Search relevance", "owner": "Priya", "count": 2410, "tone": "info", "done": true },
+    { "title": "Mobile release", "owner": "Sam", "count": 1980, "tone": "neutral", "done": false },
+    { "title": "Incident review", "owner": "Lee", "count": 1745, "tone": "danger", "done": true },
+    { "title": "Pricing page", "owner": "Morgan", "count": 1530, "tone": "info", "done": false },
+    { "title": "Data export", "owner": "Riley", "count": 1288, "tone": "success", "done": true },
+    { "title": "Team permissions", "owner": "Casey", "count": 1104, "tone": "neutral", "done": false },
+    { "title": "Email templates", "owner": "Quinn", "count": 902, "tone": "info", "done": true },
+    { "title": "Audit log", "owner": "Taylor", "count": 711, "tone": "warning", "done": false },
+    { "title": "SSO setup", "owner": "Drew", "count": 498, "tone": "success", "done": true },
+    { "title": "Status page", "owner": "Jamie", "count": 269, "tone": "neutral", "done": false }
+  ]
+}

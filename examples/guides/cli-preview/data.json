@@ -1,0 +1,13 @@
+{
+  "orderNumber": "A-10423",
+  "firstName": "Maya",
+  "orderUrl": "https://example.com/orders/A-10423",
+  "items": [
+    { "name": "Linen notebook", "quantity": 2, "price": "$24.00" },
+    { "name": "Brass pen", "quantity": 1, "price": "$38.00" },
+    { "name": "Desk tray", "quantity": 1, "price": "$19.50" }
+  ],
+  "subtotal": "$81.50",
+  "discount": { "label": "WELCOME10", "amount": "$8.15" },
+  "total": "$73.35"
+}
