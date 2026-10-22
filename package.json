@@ -1,6 +1,6 @@
 {
   "name": "inline-email",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "Compile HTML and CSS into email-safe templates and render them with Handlebars per send. Node library and CLI.",
   "type": "module",
   "main": "dist/index.js",
@@ -55,6 +55,8 @@
     "eslint": "^10.13.0",
     "eslint-plugin-jsdoc": "^65.3.12",
     "globals": "^17.13.0",
+    "inky": "^1.5.0",
+    "inky-2": "npm:inky@2.0.0-beta.10",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"

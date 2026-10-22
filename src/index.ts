@@ -15,6 +15,7 @@ export type {
   EmailStyleVariant,
   EngineOptions,
   EscapeMode,
+  LayoutFlavor,
   RenderData,
   RenderedEmail,
   RenderEmailOptions,

@@ -16,6 +16,18 @@ const libraryCheck = `
   process.stdout.write(compiled.render({ data: { name: 'Ada' } }).html);
 `;
 
+const missingInkyMessage = "responsive: 'inky' needs the inky package. Install it with npm install inky.";
+
+const missingInkyCheck = `
+  import { compileEmailTemplate } from 'inline-email';
+  try {
+    await compileEmailTemplate({ html: '<container>Hi</container>', responsive: 'inky' });
+    process.stdout.write('The compile resolved.');
+  } catch (error) {
+    process.stdout.write(error.message);
+  }
+`;
+
 function runNpm(npmArguments, workingDir) {
   return execFileSync(process.execPath, [npmCli, ...npmArguments], { cwd: workingDir, encoding: 'utf8' });
 }
@@ -47,6 +59,13 @@ function checkCli(projectDir) {
   }
 }
 
+function checkMissingInky(projectDir) {
+  const message = execFileSync(process.execPath, ['--input-type=module', '--eval', missingInkyCheck], { cwd: projectDir, encoding: 'utf8' });
+  if (message !== missingInkyMessage) {
+    throw new Error(`responsive: 'inky' without Inky installed did not reject with the install message. It gave:\n${message}`);
+  }
+}
+
 function main() {
   if (npmCli === undefined) {
     console.error('Run this check through npm: npm run test:package');
@@ -64,7 +83,8 @@ function main() {
     installPackage(tarball, projectDir);
     checkLibrary(projectDir);
     checkCli(projectDir);
-    console.log('The packed package installs, and its library and CLI both run.');
+    checkMissingInky(projectDir);
+    console.log('The packed package installs without Inky, its library and CLI both run, and responsive: \'inky\' asks for Inky.');
   } catch (error) {
     console.error(`Packed package check failed: ${error.message}`);
     process.exitCode = 1;

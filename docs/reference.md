@@ -12,6 +12,7 @@ This page holds the full library API, template syntax, layout tags and CLI optio
 - [Responsive Layout Tags](#responsive-layout-tags)
   - [Vanilla Tones](#vanilla-tones)
   - [Image-Based Open Analytics](#image-based-open-analytics)
+  - [Inky](#inky)
 - [Compile Transforms](#compile-transforms)
 - [CLI](#cli)
 
@@ -282,7 +283,22 @@ Supported tags:
 <footer>      Muted footer section.
 ```
 
-Responsive layout tags are enabled by default. Disable them with `responsive: false` if you want to pass through raw HTML unchanged.
+Responsive layout tags are enabled by default: HTML that holds one of these tags goes through the built-in layout. The `responsive` option chooses the layout flavor, on `compileEmailTemplate` and `inlineEmailHtml`; the object form `{ enabled }` is typed on `compileEmailTemplate` only. The `transform`, when given, runs after the layout in every case:
+
+| `responsive` | HTML has a layout tag | Inky installed | Result |
+| --- | --- | --- | --- |
+| left out, `null`, or `{}` | yes | any | The built-in layout runs |
+| left out, `null`, or `{}` | no | any | No layout runs |
+| `true`, or `{ enabled: true }` | any | any | The built-in layout runs |
+| `false`, or `{ enabled: false }` | any | any | No layout runs |
+| `'default'` | any | any | The built-in layout runs, the same as `true` |
+| `'inky'` | any | yes | Inky renders the HTML; the built-in layout does not run |
+| `'inky'` | any | no | Compiling rejects with an error that names the `inky` package and how to install it |
+| any other string or type | any | any | Compiling rejects with an error that lists the accepted values |
+
+`'default'` is the preferred spelling of `true`; `true` keeps working.
+
+Flavors do not mix: one compile runs one layout. Under `'inky'`, the built-in tags that Inky does not know, such as `<hero-image>`, `<brand>` and `<otp>`, are passed through unrendered.
 
 ### Vanilla Tones
 
@@ -337,19 +353,52 @@ compiled.render({
 
 That keeps analytics tied to useful email assets such as logos, hero images, and product screenshots instead of relying on a hidden request that many clients block. Your sending app owns consent, disclosure, retention, and analytics handling.
 
-## Compile Transforms
+### Inky
 
-For layout syntax or local experiments, pass a compile-stage `transform`. It runs before CSS inlining and before runtime values are rendered:
+To write [Inky](https://get.foundation/emails/docs/inky.html) markup instead of the built-in tags, install Inky and Foundation for Emails, then set `responsive: 'inky'`:
+
+```sh
+npm install inky foundation-emails
+```
 
 ```ts
+import { readFileSync } from 'node:fs';
+import { compileEmailTemplate } from 'inline-email';
+
 const compiled = await compileEmailTemplate({
-  html,
-  css,
-  transform: (source) => renderResponsiveLayout(source)
+  html: '<container><row><columns>Hello {{firstName}}</columns></row></container>',
+  css: readFileSync('node_modules/foundation-emails/dist/foundation-emails.css', 'utf8'),
+  responsive: 'inky'
 });
 ```
 
-This is where product-specific helpers can grow without coupling the package to Inky, MJML, React Email, or any other layout framework.
+In the CLI, pass `--responsive inky`. Inky's output uses class names such as `container`, `row` and `columns`, which get their look from Foundation for Emails' CSS. Pass that CSS through `css`, or `--css` in the CLI, or the layout is unstyled. Install `foundation-emails` yourself, with either Inky version, and read its CSS from `node_modules/foundation-emails/dist/foundation-emails.css`:
+
+```sh
+inline-email --responsive inky --css node_modules/foundation-emails/dist/foundation-emails.css inky.html
+```
+
+`'inky'` runs whichever Inky version is installed, with its defaults:
+
+- Inky 1, from `npm install inky`, is stable, but it installs about 200 packages, with known `npm audit` findings.
+- Inky 2, from `npm install inky@beta`, is a beta with no dependencies. It also reads Inky 1 markup. Inky 2 cannot be used with Handlebars partials: it escapes every partial, such as `{{> footer}}` and `{{#> layout}}`, rewriting `{{> footer}}` as `{{&gt; footer}}`, so with Inky 2, `'inky'` rejects HTML that contains a partial. Use Inky 1 for templates with partials, or inline the partial.
+
+When the installed `inky` package fails to load, such as from a broken install, `'inky'` rejects with `responsive: 'inky' could not load the inky package.`, with the load error as its `cause`. Node keeps a failed load for the life of the process, so after fixing the install, restart the running process. A missing `inky` installed later is picked up without a restart.
+
+## Compile Transforms
+
+For layout syntax or local experiments, pass a compile-stage `transform`. It runs after the chosen layout flavor, before CSS inlining and before runtime values are rendered. This one tags links to the product site for analytics:
+
+```ts
+const compiled = await compileEmailTemplate({
+  html: '<section padding="16"><p><a href="https://acme.example/pricing">See pricing</a></p></section>',
+  transform: (source) => source.replace(/href="(https:\/\/acme\.example\/[^"?]*)"/g, 'href="$1?utm_source=email"')
+});
+```
+
+The rendered link is `<a href="https://acme.example/pricing?utm_source=email">`. Since the transform runs before rendering, it sees `{{placeholders}}` rather than their values, so a link written as `{{appUrl}}/pricing` is not matched.
+
+This is where product-specific helpers can grow without coupling the package to MJML, React Email, or any other layout framework. Inky has its own flavor, [`responsive: 'inky'`](#inky).
 
 ## CLI
 
@@ -367,6 +416,7 @@ Supported options:
 --html <file>          Input HTML file. A positional input file is also supported.
 --css <files...>       CSS files to inline. The HTML's <style> blocks are then left in place, unless the files hold only whitespace; without CSS, they are inlined instead.
 --out, -o <file>       Write output to a file instead of stdout.
+--responsive <flavor>  Layout flavor: default, inky or false. Without it, layout tags in the HTML get the built-in layout.
 --inlineImages         Embed referenced images as data URIs. Off by default.
 --noInlineImages       Deprecated and ignored; images are no longer inlined by default.
 --data <file>          Render the template with this JSON file and write the rendered HTML.

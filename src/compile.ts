@@ -1,5 +1,6 @@
 import juice from 'juice';
 import { compileTemplate } from './engine.js';
+import { renderInky } from './inky.js';
 import { renderResponsiveLayout } from './layout.js';
 import { applyEmailStyle } from './style.js';
 import { isTemplateData } from './template.js';
@@ -9,6 +10,7 @@ import type {
   EmailRenderContext,
   EmailStyle,
   JuiceOptions,
+  LayoutFlavor,
   RenderData,
   RenderEmailOptions,
   RenderedEmail,
@@ -16,6 +18,8 @@ import type {
 } from './types.js';
 
 type WebResources = NonNullable<JuiceOptions['webResources']>;
+type ResolvedLayout = LayoutFlavor | 'none';
+type HtmlOptions = { transform?: TemplateTransform; juice?: JuiceOptions };
 
 const DEFAULT_JUICE_OPTIONS: JuiceOptions = {
   webResources: {
@@ -31,18 +35,30 @@ const DEFAULT_JUICE_OPTIONS: JuiceOptions = {
 export const LAYOUT_TAG_PATTERN =
   /<\/?(email|preview|container|section|columns|column|button|spacer|divider|image|hero-image|otp|alert|panel|brand|footer)\b/i;
 
+const LAYOUT_FLAVORS: Record<LayoutFlavor, (html: string) => Promise<string>> = {
+  default: async (html) => renderResponsiveLayout(html),
+  inky: renderInky
+};
+
+const ACCEPTED_RESPONSIVE_VALUES = [...Object.keys(LAYOUT_FLAVORS).map((flavor) => `'${flavor}'`), 'true', 'false'];
+
 /**
  * Compiles an email template once so it can be rendered many times with different data.
  *
- * The HTML goes through the responsive layout, the `transform` and CSS inlining at compile time;
- * the subject, HTML and text are then compiled as Handlebars templates.
+ * The HTML goes through the layout chosen by `responsive`, the `transform` and CSS inlining at
+ * compile time; the subject, HTML and text are then compiled as Handlebars templates. `responsive`
+ * takes `'default'` or `true` for the built-in layout, `'inky'` for the installed Inky, `false` for
+ * no layout, `{ enabled }` like a boolean, or is left out to apply the built-in layout when the HTML
+ * has a layout tag.
  *
  * @param options - The template's HTML, optional CSS, subject and text, and how to compile them.
  * @returns The compiled template, with the processed subject, HTML and text and a `render` function
  * that takes data, or `{ data, style }`, and returns the rendered email.
- * @rejects When `html` is missing, a layout tag lacks a required attribute, the escape option is
- * invalid, a template is malformed, or, with `juice.webResources.strict` on, an external resource
- * cannot be inlined. `render` throws when strict mode finds a missing field.
+ * @rejects When `html` is missing, `responsive` is not one of the values above, `responsive` is
+ * `'inky'` and the `inky` package is missing or cannot render the HTML, a layout tag lacks a
+ * required attribute, the escape option is invalid, a template is malformed, or, with
+ * `juice.webResources.strict` on, an external resource cannot be inlined. `render` throws when
+ * strict mode finds a missing field.
  */
 export async function compileEmailTemplate(
   options: CompileEmailTemplateOptions
@@ -51,8 +67,8 @@ export async function compileEmailTemplate(
     throw new Error('HTML is required.');
   }
 
-  const html = await inlineEmailHtml(options.html, options.css, {
-    responsive: normalizeResponsiveOption(options.responsive),
+  const layout = resolveLayout(options.responsive, options.html);
+  const html = await prepareEmailHtml(options.html, options.css, layout, {
     transform: options.transform,
     juice: options.juice
   });
@@ -79,12 +95,83 @@ export async function compileEmailTemplate(
   };
 }
 
-function normalizeResponsiveOption(responsive: CompileEmailTemplateOptions['responsive']): boolean | undefined {
-  if (typeof responsive === 'boolean') {
+function resolveLayout(responsive: unknown, html: string): ResolvedLayout {
+  // `{ enabled }` is read like its boolean; `{}`, like a value left out, falls back to layout tag detection.
+  const value = isPlainObject(responsive) ? responsive.enabled : responsive;
+
+  if (value === undefined || responsive === null) {
+    return LAYOUT_TAG_PATTERN.test(html) ? 'default' : 'none';
+  }
+
+  if (value === true) {
+    return 'default';
+  }
+
+  if (value === false) {
+    return 'none';
+  }
+
+  if (isLayoutFlavor(responsive)) {
     return responsive;
   }
 
-  return responsive?.enabled;
+  throw new Error(`Unknown responsive value ${describeValue(responsive)}. Use ${listAcceptedValues()}.`);
+}
+
+function isLayoutFlavor(value: unknown): value is LayoutFlavor {
+  return typeof value === 'string' && Object.hasOwn(LAYOUT_FLAVORS, value);
+}
+
+function listAcceptedValues(): string {
+  return `${ACCEPTED_RESPONSIVE_VALUES.slice(0, -1).join(', ')} or ${ACCEPTED_RESPONSIVE_VALUES.at(-1)}`;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+// Names the value as it would be written in JavaScript, so `NaN`, `1n` or `{ enabled: Symbol(s) }`
+// read as given rather than as JSON would render them.
+function describeValue(value: unknown, seen = new Set<object>()): string {
+  if (typeof value === 'string') {
+    return `'${value}'`;
+  }
+
+  if (typeof value === 'bigint') {
+    return `${value}n`;
+  }
+
+  if (typeof value === 'function') {
+    return 'a function';
+  }
+
+  if (typeof value !== 'object' || value === null) {
+    return String(value);
+  }
+
+  if (!Array.isArray(value) && !isPlainObject(value)) {
+    return `a ${value.constructor?.name || 'non-plain object'}`;
+  }
+
+  if (seen.has(value)) {
+    return 'a circular reference';
+  }
+
+  seen.add(value);
+  const description = Array.isArray(value)
+    ? `[${value.map((item) => describeValue(item, seen)).join(', ')}]`
+    : describeEntries(Object.entries(value).map(([key, item]) => `${key}: ${describeValue(item, seen)}`));
+  seen.delete(value);
+  return description;
+}
+
+function describeEntries(entries: string[]): string {
+  return entries.length === 0 ? '{}' : `{ ${entries.join(', ')} }`;
 }
 
 /**
@@ -113,28 +200,40 @@ export async function renderEmail(options: RenderEmailOptions): Promise<Rendered
 }
 
 /**
- * Prepares email HTML: applies the responsive layout and the transform, inlines any external
- * resources the juice options ask for, then inlines the CSS into `style` attributes.
+ * Prepares email HTML: applies the layout chosen by `responsive` and the transform, inlines any
+ * external resources the juice options ask for, then inlines the CSS into `style` attributes.
  *
  * @param html - The email HTML.
  * @param css - CSS to inline. When given, only this CSS is inlined and the HTML's `<style>`
  * blocks are left in place; when empty or whitespace only, the `<style>` blocks are inlined instead.
  * @param options - How to prepare the HTML.
- * @param options.responsive - Whether to apply the responsive layout; by default, when the HTML
+ * @param options.responsive - Which layout to apply: `'default'` or `true` for the built-in layout,
+ * `'inky'` for the installed Inky, `false` for none; by default, the built-in layout when the HTML
  * has a layout tag.
- * @param options.transform - A function run on the HTML after the responsive layout.
+ * @param options.transform - A function run on the HTML after the layout.
  * @param options.juice - Options passed to juice. Images are not inlined unless
  * `webResources.images` asks for it.
  * @returns The HTML with its CSS inlined.
- * @rejects When a layout tag lacks a required attribute, the transform throws, or, with
- * `juice.webResources.strict` on, an external resource cannot be inlined.
+ * @rejects When `responsive` is not one of the values above, `responsive` is `'inky'` and the
+ * `inky` package is missing or cannot render the HTML, a layout tag lacks a required attribute,
+ * the transform throws, or, with `juice.webResources.strict` on, an external resource cannot be
+ * inlined.
  */
 export async function inlineEmailHtml(
   html: string,
   css = '',
-  options: { responsive?: boolean; transform?: TemplateTransform; juice?: JuiceOptions } = {}
+  options: { responsive?: boolean | LayoutFlavor; transform?: TemplateTransform; juice?: JuiceOptions } = {}
 ): Promise<string> {
-  const transformedHtml = await applyTransforms(html, options);
+  return prepareEmailHtml(html, css, resolveLayout(options.responsive, html), options);
+}
+
+async function prepareEmailHtml(
+  html: string,
+  css: string | undefined,
+  layout: ResolvedLayout,
+  options: HtmlOptions
+): Promise<string> {
+  const transformedHtml = await applyTransforms(html, layout, options.transform);
   const juiceOptions = mergeJuiceOptions(options.juice);
   const resourceHtml = await inlineRequestedResources(transformedHtml, juiceOptions.webResources);
 
@@ -187,20 +286,9 @@ function inlineExternalResources(html: string, webResources: WebResources): Prom
   });
 }
 
-async function applyTransforms(
-  html: string,
-  options: { responsive?: boolean; transform?: TemplateTransform }
-): Promise<string> {
-  const responsiveHtml = shouldRenderResponsiveLayout(html, options.responsive) ? renderResponsiveLayout(html) : html;
-  return options.transform ? options.transform(responsiveHtml) : responsiveHtml;
-}
-
-function shouldRenderResponsiveLayout(html: string, responsive: boolean | undefined): boolean {
-  if (responsive !== undefined) {
-    return responsive;
-  }
-
-  return LAYOUT_TAG_PATTERN.test(html);
+async function applyTransforms(html: string, layout: ResolvedLayout, transform?: TemplateTransform): Promise<string> {
+  const laidOutHtml = layout === 'none' ? html : await LAYOUT_FLAVORS[layout](html);
+  return transform ? transform(laidOutHtml) : laidOutHtml;
 }
 
 function mergeJuiceOptions(options: JuiceOptions = {}): JuiceOptions & { webResources: WebResources } {
