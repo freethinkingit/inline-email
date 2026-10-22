@@ -53,7 +53,7 @@
     "@types/node": "^20.14.15",
     "@vitest/coverage-v8": "^4.1.12",
     "eslint": "^10.13.0",
-    "eslint-plugin-jsdoc": "^63.3.3",
+    "eslint-plugin-jsdoc": "^65.3.12",
     "globals": "^17.13.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.72.0",
