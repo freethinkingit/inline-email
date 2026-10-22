@@ -148,15 +148,10 @@ The package targets Node.js 22, 24, and 26.
 
 ## Quality
 
-- [CI workflow](https://github.com/freethinkingit/inline-email/actions/workflows/ci.yml) runs install, high-severity audit, build, tests, examples, and an install-and-run check of the packed package on Node.js 22, 24, and 26.
+- [CI workflow](https://github.com/freethinkingit/inline-email/actions/workflows/ci.yml) runs install, high-severity audit, lint, build, tests, examples, and an install-and-run check of the packed package on Node.js 22, 24, and 26.
+- The linter is ESLint, configured in [`eslint.config.js`](eslint.config.js); it must report nothing.
+- The coverage gate fails `npm test` when line or branch coverage of `src/` drops below 99%.
 - Tests live in [`test/`](test/), and visual regression tests compare rendered emails against approved screenshots.
-- Local checks:
-
-```sh
-npm run build
-npm test
-npm run test:visual
-```
 
 When an intentional layout change updates the screenshots:
 
@@ -168,9 +163,12 @@ npm run test:visual -- --update-snapshots
 
 ```sh
 npm ci
-npm run build
-npm test
+npm run check
+npx playwright install chromium
+npm run test:visual
 ```
+
+`npm run check` runs lint, build, tests with the coverage gate, and examples, all offline. CI also runs `npm run audit`, `npm run test:package` and the visual tests. The visual tests need the browser installed once, and their approved screenshots exist only for macOS. [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, coverage per module, branch naming and issues.
 
 ## Release
 

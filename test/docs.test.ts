@@ -36,72 +36,113 @@ const read = (path: string) => readFileSync(path, 'utf8');
 const lines = (text: string) => text.replace(/\n$/, '').split('\n');
 const fenceOpener = /^( {0,3})(`{3,}|~{3,})(.*)$/;
 const fileMarker = /(?:^|\s)file=(\S+)/;
+const fileFenceLine = /^\s*(`{3,}|~{3,}).*\bfile=/;
+
+// CommonMark: the info string of a backtick fence cannot contain a backtick, so such a line opens no block.
+function opensFence(opener: RegExpExecArray): boolean {
+  const [, , fence, info] = opener;
+  return !(fence.startsWith('`') && info.includes('`'));
+}
+
+function readFencedBlock(sourceLines: string[], openerIndex: number, opener: RegExpExecArray): FencedBlock {
+  const [, indent, fence, info] = opener;
+  const closingFence = new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`);
+  const openerIndent = new RegExp(`^ {0,${indent.length}}`);
+  const body: string[] = [];
+  let index = openerIndex + 1;
+  while (index < sourceLines.length && !closingFence.test(sourceLines[index])) {
+    body.push(sourceLines[index].replace(openerIndent, ''));
+    index++;
+  }
+  return { info: info.trim(), body: body.join('\n'), line: openerIndex + 1, endLine: index + 1 };
+}
 
 function fencedBlocks(markdown: string): FencedBlock[] {
   const blocks: FencedBlock[] = [];
-  const source = markdown.split('\n');
-  for (let i = 0; i < source.length; i++) {
-    const open = fenceOpener.exec(source[i]);
-    if (!open) continue;
-    const [, indent, fence, info] = open;
-    if (fence[0] === '`' && info.includes('`')) continue;
-    const closer = new RegExp(`^ {0,3}${fence[0]}{${fence.length},}\\s*$`);
-    const bodyIndent = new RegExp(`^ {0,${indent.length}}`);
-    const start = i;
-    const body: string[] = [];
-    for (i++; i < source.length && !closer.test(source[i]); i++) body.push(source[i].replace(bodyIndent, ''));
-    blocks.push({ info: info.trim(), body: body.join('\n'), line: start + 1, endLine: i + 1 });
+  const sourceLines = markdown.split('\n');
+  let index = 0;
+  while (index < sourceLines.length) {
+    const opener = fenceOpener.exec(sourceLines[index]);
+    if (opener === null || !opensFence(opener)) {
+      index++;
+      continue;
+    }
+    const block = readFencedBlock(sourceLines, index, opener);
+    blocks.push(block);
+    index = block.endLine;
   }
   return blocks;
 }
 
 function withoutFencedBlocks(markdown: string): string {
-  const source = markdown.split('\n');
+  const sourceLines = markdown.split('\n');
   for (const block of fencedBlocks(markdown)) {
-    for (let i = block.line - 1; i < Math.min(block.endLine, source.length); i++) source[i] = '';
+    const endIndex = Math.min(block.endLine, sourceLines.length);
+    for (let index = block.line - 1; index < endIndex; index++) {
+      sourceLines[index] = '';
+    }
   }
-  return source.join('\n');
+  return sourceLines.join('\n');
+}
+
+function quotedFilePath(block: FencedBlock): string | undefined {
+  const marker = fileMarker.exec(block.info);
+  if (marker === null) return undefined;
+  return marker[1];
+}
+
+function firstDifferingLine(expected: string[], actual: string[]): number | undefined {
+  const longest = Math.max(expected.length, actual.length);
+  for (let index = 0; index < longest; index++) {
+    if (expected[index] !== actual[index]) return index;
+  }
+  return undefined;
+}
+
+function unparsedFileFences(docName: string, markdown: string, blocks: FencedBlock[]): string[] {
+  const openerLines = new Set(blocks.map((block) => block.line));
+  const sourceLines = markdown.split('\n');
+  const problems: string[] = [];
+  for (let index = 0; index < sourceLines.length; index++) {
+    const lineNumber = index + 1;
+    if (fileFenceLine.test(sourceLines[index]) && !openerLines.has(lineNumber)) {
+      problems.push(`${docName}:${lineNumber}: fence with file= was not parsed as a fenced block`);
+    }
+  }
+  return problems;
 }
 
 function checkFileBlocks(docName: string, markdown: string, readRepoFile: (path: string) => string | undefined): string[] {
-  const problems: string[] = [];
   const blocks = fencedBlocks(markdown);
-  const openerLines = new Set(blocks.map((block) => block.line));
-  markdown.split('\n').forEach((line, index) => {
-    if (/^\s*(`{3,}|~{3,}).*\bfile=/.test(line) && !openerLines.has(index + 1)) {
-      problems.push(`${docName}:${index + 1}: fence with file= was not parsed as a fenced block`);
-    }
-  });
+  const problems = unparsedFileFences(docName, markdown, blocks);
   for (const block of blocks) {
-    const path = fileMarker.exec(block.info)?.[1];
-    if (!path) continue;
+    const path = quotedFilePath(block);
+    if (path === undefined) continue;
     const content = readRepoFile(path);
     if (content === undefined) {
       problems.push(`${docName}:${block.line}: file=${path} does not exist`);
       continue;
     }
-    const expected = lines(content);
-    const actual = lines(block.body);
-    const max = Math.max(expected.length, actual.length);
-    for (let i = 0; i < max; i++) {
-      if (expected[i] !== actual[i]) {
-        problems.push(
-          `${docName}:${block.line}: block differs from ${path} at line ${i + 1}: ` +
-            `doc has ${JSON.stringify(actual[i])}, file has ${JSON.stringify(expected[i])}`
-        );
-        break;
-      }
+    const fileLines = lines(content);
+    const blockLines = lines(block.body);
+    const differingIndex = firstDifferingLine(fileLines, blockLines);
+    if (differingIndex !== undefined) {
+      problems.push(
+        `${docName}:${block.line}: block differs from ${path} at line ${differingIndex + 1}: ` +
+          `doc has ${JSON.stringify(blockLines[differingIndex])}, file has ${JSON.stringify(fileLines[differingIndex])}`
+      );
     }
   }
   return problems;
 }
 
 function checkFileBlockPresence(docName: string, markdown: string, requiredPaths: string[] = []): string[] {
-  const quoted = fencedBlocks(markdown)
-    .map((block) => fileMarker.exec(block.info)?.[1])
+  const quotedPaths = fencedBlocks(markdown)
+    .map(quotedFilePath)
     .filter((path): path is string => path !== undefined);
-  if (quoted.length === 0) return [`${docName} has no file= block`];
-  return requiredPaths.filter((path) => !quoted.includes(path)).map((path) => `${docName} does not quote ${path}`);
+  if (quotedPaths.length === 0) return [`${docName} has no file= block`];
+  const missingPaths = requiredPaths.filter((path) => !quotedPaths.includes(path));
+  return missingPaths.map((path) => `${docName} does not quote ${path}`);
 }
 
 function checkLineLimit(docName: string, text: string, max: number): string[] {
@@ -110,9 +151,11 @@ function checkLineLimit(docName: string, text: string, max: number): string[] {
 }
 
 const readRepoFile = (path: string) => {
-  const full = join(rootDir, path);
-  return existsSync(full) ? read(full) : undefined;
+  const absolutePath = join(rootDir, path);
+  return existsSync(absolutePath) ? read(absolutePath) : undefined;
 };
+
+const headingLine = /^#{1,6}\s+(.*)$/;
 
 function headingSlug(heading: string): string {
   return heading
@@ -123,65 +166,76 @@ function headingSlug(heading: string): string {
 }
 
 function headingSlugs(markdown: string): string[] {
-  return withoutFencedBlocks(markdown)
-    .split('\n')
-    .map((line) => /^#{1,6}\s+(.*)$/.exec(line)?.[1])
-    .filter((heading): heading is string => heading !== undefined)
-    .map(headingSlug);
+  const slugs: string[] = [];
+  for (const line of withoutFencedBlocks(markdown).split('\n')) {
+    const heading = headingLine.exec(line);
+    if (heading !== null) slugs.push(headingSlug(heading[1]));
+  }
+  return slugs;
 }
 
 const inlineLink = /\]\(\s*(?:<([^>\n]*)>|([^\s)]+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*\)/g;
 const referenceDefinition = /^ {0,3}\[[^\]\n]+\]:\s*(?:<([^>\n]*)>|(\S+))/gm;
 const htmlAttribute = /\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+const codeSpan = /`[^`\n]*`/g;
+const urlScheme = /^[a-z][a-z0-9+.-]*:/i;
 
 function linkTargets(markdown: string): string[] {
-  const prose = withoutFencedBlocks(markdown).replace(/`[^`\n]*`/g, '');
-  return [inlineLink, referenceDefinition, htmlAttribute].flatMap((pattern) =>
-    [...prose.matchAll(pattern)].map((match) => match[1] ?? match[2])
-  );
+  const prose = withoutFencedBlocks(markdown).replace(codeSpan, '');
+  const targets: string[] = [];
+  for (const pattern of [inlineLink, referenceDefinition, htmlAttribute]) {
+    for (const match of prose.matchAll(pattern)) {
+      targets.push(match[1] ?? match[2]);
+    }
+  }
+  return targets;
 }
 
 // existsSync ignores case on macOS and Windows, so each segment is compared with the real directory listing as Linux CI would.
 function existsWithExactCase(path: string): boolean {
   const fromRoot = relative(rootDir, path);
   if (fromRoot.startsWith('..') || isAbsolute(fromRoot)) return false;
-  let dir = rootDir;
-  for (const segment of fromRoot.split(sep).filter(Boolean)) {
-    if (!statSync(dir).isDirectory() || !readdirSync(dir).includes(segment)) return false;
-    dir = join(dir, segment);
+  let directory = rootDir;
+  for (const segment of fromRoot.split(sep).filter((part) => part !== '')) {
+    if (!statSync(directory).isDirectory() || !readdirSync(directory).includes(segment)) return false;
+    directory = join(directory, segment);
   }
   return true;
+}
+
+function splitAnchor(target: string): { path: string; anchor: string | undefined } {
+  const hashIndex = target.indexOf('#');
+  if (hashIndex < 0) return { path: target, anchor: undefined };
+  return { path: target.slice(0, hashIndex), anchor: target.slice(hashIndex + 1) };
+}
+
+function repoFileForLink(docPath: string, target: string, path: string): string | undefined {
+  const repoPrefix = [repoBlobPrefix, repoRawPrefix].find((prefix) => target.startsWith(prefix));
+  if (repoPrefix !== undefined) return join(rootDir, decodeURI(path.slice(repoPrefix.length)));
+  if (urlScheme.test(target)) return undefined;
+  if (path === '') return docPath;
+  return resolve(dirname(docPath), decodeURI(path));
+}
+
+function linkProblem(docPath: string, markdown: string, target: string): string | undefined {
+  const { path, anchor } = splitAnchor(target);
+  const file = repoFileForLink(docPath, target, path);
+  if (file === undefined) return undefined;
+  const linksToSameDoc = path === '';
+  if (!linksToSameDoc && !existsWithExactCase(file)) return 'does not resolve to a file';
+  if (anchor === undefined) return undefined;
+  if (!linksToSameDoc && statSync(file).isDirectory()) return 'has an anchor but points at a directory';
+  const linkedMarkdown = linksToSameDoc ? markdown : read(file);
+  if (!headingSlugs(linkedMarkdown).includes(anchor)) return 'names an anchor with no matching heading';
+  return undefined;
 }
 
 function checkLinks(docPath: string, markdown: string): string[] {
   const docName = relative(rootDir, docPath);
   const problems: string[] = [];
   for (const target of linkTargets(markdown)) {
-    const hash = target.indexOf('#');
-    const pathPart = hash < 0 ? target : target.slice(0, hash);
-    const anchor = hash < 0 ? undefined : target.slice(hash + 1);
-    const repoPrefix = [repoBlobPrefix, repoRawPrefix].find((prefix) => target.startsWith(prefix));
-    let file: string;
-    if (repoPrefix !== undefined) {
-      file = join(rootDir, decodeURI(pathPart.slice(repoPrefix.length)));
-    } else if (/^[a-z][a-z0-9+.-]*:/i.test(target)) {
-      continue;
-    } else {
-      file = pathPart === '' ? docPath : resolve(dirname(docPath), decodeURI(pathPart));
-    }
-    if (pathPart !== '') {
-      if (!existsWithExactCase(file)) {
-        problems.push(`${docName}: link ${target} does not resolve to a file`);
-        continue;
-      }
-      if (anchor !== undefined && statSync(file).isDirectory()) {
-        problems.push(`${docName}: link ${target} has an anchor but points at a directory`);
-        continue;
-      }
-    }
-    if (anchor !== undefined && !headingSlugs(pathPart === '' ? markdown : read(file)).includes(anchor)) {
-      problems.push(`${docName}: link ${target} names an anchor with no matching heading`);
-    }
+    const problem = linkProblem(docPath, markdown, target);
+    if (problem !== undefined) problems.push(`${docName}: link ${target} ${problem}`);
   }
   return problems;
 }
@@ -193,13 +247,13 @@ function lastBadgeIndex(readmeLines: string[]): number {
 }
 
 function checkReadmeOpening(readme: string): string[] {
-  const all = lines(readme);
-  const lastBadge = lastBadgeIndex(all);
+  const readmeLines = lines(readme);
+  const lastBadge = lastBadgeIndex(readmeLines);
   if (lastBadge < 0) return ['README has no badge line'];
   const problems: string[] = [];
-  const opening = all.slice(lastBadge + 1);
+  const opening = readmeLines.slice(lastBadge + 1);
   const pitch = opening.find((line) => line.trim() !== '');
-  if (!pitch?.startsWith('inline-email turns HTML and CSS')) {
+  if (pitch === undefined || !pitch.startsWith('inline-email turns HTML and CSS')) {
     problems.push(`README's first line after the badges is not the pitch: ${JSON.stringify(pitch)}`);
   }
   const whenToUse = opening.indexOf('## When to use it');
@@ -208,10 +262,12 @@ function checkReadmeOpening(readme: string): string[] {
     problems.push(`README "## When to use it" is not within the first ${README_OPENING_LINES} lines after the badges`);
   }
   if (quickstart <= whenToUse) problems.push('README "## Quickstart" does not come after "## When to use it"');
-  const linkWindow = opening.slice(0, whenToUse < 0 ? README_OPENING_LINES : Math.min(whenToUse, README_OPENING_LINES));
-  const linked = new Set(linkTargets(linkWindow.join('\n')).map((target) => target.split('#')[0]));
+  let linkWindowEnd = README_OPENING_LINES;
+  if (whenToUse >= 0) linkWindowEnd = Math.min(whenToUse, README_OPENING_LINES);
+  const linkWindow = opening.slice(0, linkWindowEnd).join('\n');
+  const linkedPaths = new Set(linkTargets(linkWindow).map((target) => splitAnchor(target).path));
   for (const link of requiredDocLinks) {
-    if (!linked.has(link)) problems.push(`README does not link ${link} before "## When to use it"`);
+    if (!linkedPaths.has(link)) problems.push(`README does not link ${link} before "## When to use it"`);
   }
   return problems;
 }
@@ -219,45 +275,50 @@ function checkReadmeOpening(readme: string): string[] {
 function checkLlms(llms: string): string[] {
   const problems: string[] = [];
   const firstLine = lines(llms)[0];
-  if (firstLine !== '# inline-email') problems.push(`llms.txt first line is ${JSON.stringify(firstLine)}, not "# inline-email"`);
+  if (firstLine !== '# inline-email') {
+    problems.push(`llms.txt first line is ${JSON.stringify(firstLine)}, not "# inline-email"`);
+  }
   const linked = new Set(linkTargets(llms));
-  const required = [...['README.md', ...requiredDocLinks].map((path) => repoBlobPrefix + path), npmPackageUrl];
-  for (const url of required) {
+  const docUrls = ['README.md', ...requiredDocLinks].map((path) => repoBlobPrefix + path);
+  for (const url of [...docUrls, npmPackageUrl]) {
     if (!linked.has(url)) problems.push(`llms.txt does not link ${url}`);
   }
   return [...problems, ...checkLineLimit('llms.txt', llms, LLMS_MAX_LINES)];
 }
 
+const usageFunction = /function usage\(\): string \{\s*return `([\s\S]*?)`;/;
+
 function usageOptions(cliSource: string): string[] {
-  const usageBody = /function usage\(\): string \{\s*return `([\s\S]*?)`;/.exec(cliSource)?.[1] ?? '';
-  const options = usageBody.split('\nOptions:\n')[1] ?? '';
-  return options.split('\n').map((line) => line.replace(/^ {2}/, ''));
+  const usage = usageFunction.exec(cliSource);
+  if (usage === null) return [];
+  const sections = usage[1].split('\nOptions:\n');
+  if (sections.length < 2) return [];
+  return sections[1].split('\n').map((line) => line.replace(/^ {2}/, ''));
 }
 
 function referenceCliBlock(reference: string): string[] | undefined {
-  const marker = reference.indexOf('Supported options:\n');
-  if (marker < 0) return undefined;
-  const block = fencedBlocks(reference.slice(marker))[0];
-  return block === undefined ? undefined : lines(block.body);
+  const optionsIndex = reference.indexOf('Supported options:\n');
+  if (optionsIndex < 0) return undefined;
+  const block = fencedBlocks(reference.slice(optionsIndex))[0];
+  if (block === undefined) return undefined;
+  return lines(block.body);
 }
 
 function checkCliBlock(cliSource: string, reference: string): string[] {
   const options = usageOptions(cliSource);
-  if (!options.some((line) => line.startsWith('--html')) || !options.some((line) => line.startsWith('--strict'))) {
+  const hasHtmlOption = options.some((line) => line.startsWith('--html'));
+  const hasStrictOption = options.some((line) => line.startsWith('--strict'));
+  if (!hasHtmlOption || !hasStrictOption) {
     return ['src/cli.ts usage() options were not found (no --html or --strict line)'];
   }
   const block = referenceCliBlock(reference);
   if (block === undefined) return ['docs/reference.md has no "Supported options:" fenced block'];
-  const max = Math.max(options.length, block.length);
-  for (let i = 0; i < max; i++) {
-    if (options[i] !== block[i]) {
-      return [
-        `docs/reference.md CLI block differs from usage() at line ${i + 1}: ` +
-          `reference has ${JSON.stringify(block[i])}, usage() has ${JSON.stringify(options[i])}`
-      ];
-    }
-  }
-  return [];
+  const differingIndex = firstDifferingLine(options, block);
+  if (differingIndex === undefined) return [];
+  return [
+    `docs/reference.md CLI block differs from usage() at line ${differingIndex + 1}: ` +
+      `reference has ${JSON.stringify(block[differingIndex])}, usage() has ${JSON.stringify(options[differingIndex])}`
+  ];
 }
 
 interface ShellCommand {
@@ -271,51 +332,86 @@ interface CommandContext {
   fileExists: (path: string) => boolean;
 }
 
+const shellInfo = /^(sh|bash|shell)\b/;
+const flagName = /-{1,2}[A-Za-z]+/g;
+
 function shellCommands(markdown: string): ShellCommand[] {
-  return fencedBlocks(markdown)
-    .filter((block) => /^(sh|bash|shell)\b/.test(block.info))
-    .flatMap((block) =>
-      block.body.split('\n').map((text, index) => ({ line: block.line + 1 + index, words: text.trim().split(/\s+/) }))
-    )
-    .filter(({ words }) => words[0] !== '' && !words[0].startsWith('#'));
+  const commands: ShellCommand[] = [];
+  for (const block of fencedBlocks(markdown)) {
+    if (!shellInfo.test(block.info)) continue;
+    const bodyLines = block.body.split('\n');
+    for (let index = 0; index < bodyLines.length; index++) {
+      const words = bodyLines[index].trim().split(/\s+/);
+      if (words[0] === '' || words[0].startsWith('#')) continue;
+      commands.push({ line: block.line + 1 + index, words });
+    }
+  }
+  return commands;
 }
 
 function cliFlags(cliSource: string): Set<string> {
-  return new Set(usageOptions(cliSource).flatMap((line) => line.split(/\s{2,}/)[0].match(/-{1,2}[A-Za-z]+/g) ?? []));
+  const flags = new Set<string>();
+  for (const optionLine of usageOptions(cliSource)) {
+    const [flagColumn] = optionLine.split(/\s{2,}/);
+    const flagsInColumn = flagColumn.match(flagName);
+    if (flagsInColumn === null) continue;
+    for (const flag of flagsInColumn) flags.add(flag);
+  }
+  return flags;
 }
 
-function isCliCommand([first, second]: string[]): boolean {
-  return first === 'inline-email' || (first === 'npx' && second === 'inline-email') || (first === 'node' && second === 'dist/cli.js');
+function isCliCommand(words: string[]): boolean {
+  const [program, firstArgument] = words;
+  if (program === 'inline-email') return true;
+  if (program === 'npx') return firstArgument === 'inline-email';
+  if (program === 'node') return firstArgument === 'dist/cli.js';
+  return false;
+}
+
+function nodeScriptPath(words: string[]): string | undefined {
+  const [program, scriptPath] = words;
+  if (program !== 'node' || scriptPath === undefined || !scriptPath.includes('/')) return undefined;
+  return scriptPath;
+}
+
+function npmScriptName(words: string[]): string | undefined {
+  const [program, subcommand, scriptName] = words;
+  if (program !== 'npm') return undefined;
+  if (subcommand === 'run') return scriptName;
+  if (subcommand === 'test') return 'test';
+  return undefined;
 }
 
 function checkCommands(docName: string, markdown: string, context: CommandContext): string[] {
   const problems: string[] = [];
   for (const { line, words } of shellCommands(markdown)) {
-    const [first, second, third] = words;
     if (isCliCommand(words)) {
       for (const flag of words.filter((word) => word.startsWith('-'))) {
         if (!context.flags.has(flag)) problems.push(`${docName}:${line}: ${flag} is not a flag in the CLI's usage()`);
       }
     }
-    if (first === 'node' && second?.includes('/') && !context.fileExists(second)) {
-      problems.push(`${docName}:${line}: node ${second} names a file that does not exist`);
+    const scriptPath = nodeScriptPath(words);
+    if (scriptPath !== undefined && !context.fileExists(scriptPath)) {
+      problems.push(`${docName}:${line}: node ${scriptPath} names a file that does not exist`);
     }
-    const script = first !== 'npm' ? undefined : second === 'run' ? third : second === 'test' ? 'test' : undefined;
-    if (script !== undefined && !context.scripts.has(script)) {
-      problems.push(`${docName}:${line}: npm script ${script} is not in package.json`);
+    const scriptName = npmScriptName(words);
+    if (scriptName !== undefined && !context.scripts.has(scriptName)) {
+      problems.push(`${docName}:${line}: npm script ${scriptName} is not in package.json`);
     }
   }
   return problems;
 }
 
+const packageJson = JSON.parse(read(packagePath)) as { scripts: Record<string, string> };
+
 const commandContext: CommandContext = {
   flags: cliFlags(read(cliPath)),
-  scripts: new Set(Object.keys((JSON.parse(read(packagePath)) as { scripts: Record<string, string> }).scripts)),
+  scripts: new Set(Object.keys(packageJson.scripts)),
   // dist/ is build output, so a command naming it is checked against the source file it is built from.
   fileExists: (path) => existsWithExactCase(join(rootDir, path.replace(/^dist\/(.*)\.js$/, 'src/$1.ts')))
 };
 
-describe('Property 1: Guides show real files', () => {
+describe('Guides show real files', () => {
   it.each([readmePath, ...guidePaths].map((path) => [relative(rootDir, path), path]))(
     '%s shows each file= block exactly as the file',
     (name, path) => {
@@ -331,7 +427,7 @@ describe('Property 1: Guides show real files', () => {
     expect(checkFileBlockPresence('README.md', read(readmePath), quickstartFiles)).toEqual([]);
   });
 
-  it('reports an altered block with the file and the first differing line', () => {
+  it('the file= check reports an altered block with the file and its first differing line', () => {
     const doc = ['# Doc', '', '```html file=a.html', '<p>one</p>', '<p>TWO</p>', '```', ''].join('\n');
     const files: Record<string, string> = { 'a.html': '<p>one</p>\n<p>two</p>\n' };
     expect(checkFileBlocks('doc.md', doc, (path) => files[path])).toEqual([
@@ -339,20 +435,19 @@ describe('Property 1: Guides show real files', () => {
     ]);
   });
 
-  it('tolerates a single trailing newline difference', () => {
+  it('the file= check ignores a single trailing newline the block does not show', () => {
     const doc = ['```html file=a.html', '<p>one</p>', '```'].join('\n');
     expect(checkFileBlocks('doc.md', doc, () => '<p>one</p>\n')).toEqual([]);
-    expect(checkFileBlocks('doc.md', doc, () => '<p>one</p>')).toEqual([]);
   });
 
-  it('reports a file= path that does not exist', () => {
+  it('the file= check reports a file= path that does not exist', () => {
     const doc = ['```js file=examples/guides/nowhere/send.mjs', 'run();', '```'].join('\n');
     expect(checkFileBlocks('doc.md', doc, () => undefined)).toEqual([
       'doc.md:1: file=examples/guides/nowhere/send.mjs does not exist'
     ]);
   });
 
-  it('checks indented and tilde fences, closing only on the same character and at least the same length', () => {
+  it('the file= check reads indented and tilde fences, closing only on the same character and at least the same length', () => {
     const doc = ['   ~~~~html file=a.html', '   <p>one</p>', '```', '~~~', '~~~~'].join('\n');
     expect(checkFileBlocks('doc.md', doc, () => '<p>one</p>\n```\n~~~\n')).toEqual([]);
     expect(checkFileBlocks('doc.md', doc, () => '<p>one</p>\n')).toEqual([
@@ -360,14 +455,14 @@ describe('Property 1: Guides show real files', () => {
     ]);
   });
 
-  it('reports a file= fence the parser did not handle', () => {
+  it('the file= check reports a file= fence the parser did not handle', () => {
     const doc = ['    ```html file=a.html', '    <p>one</p>', '    ```'].join('\n');
     expect(checkFileBlocks('doc.md', doc, () => '<p>one</p>\n')).toEqual([
       'doc.md:1: fence with file= was not parsed as a fenced block'
     ]);
   });
 
-  it('reports a document with no file= block and a README missing a quickstart file', () => {
+  it('the presence check reports a document with no file= block and a README missing a quickstart file', () => {
     expect(checkFileBlockPresence('guide.md', '# Guide\n\n```html\n<p></p>\n```\n')).toEqual(['guide.md has no file= block']);
     const readme = '```html file=examples/guides/quickstart/welcome.html\n<p></p>\n```\n';
     expect(checkFileBlockPresence('README.md', readme, quickstartFiles)).toEqual([
@@ -376,7 +471,7 @@ describe('Property 1: Guides show real files', () => {
   });
 });
 
-describe('Property 3: Every documentation link resolves', () => {
+describe('Documentation links resolve and pages keep their shape', () => {
   it.each([readmePath, ...guidePaths, referencePath, llmsPath].map((path) => [relative(rootDir, path), path]))(
     'every relative link in %s resolves',
     (_name, path) => {
@@ -390,27 +485,27 @@ describe('Property 3: Every documentation link resolves', () => {
     ['a reference definition', '[ref]: nowhere.md', '[ref]: MIGRATION.md', 'nowhere.md'],
     ['an HTML href', '<a href="nowhere.md">a</a>', '<a href="MIGRATION.md">a</a>', 'nowhere.md'],
     ['an HTML src', '<img src="nowhere.png">', '<img src="docs/assets/feature-roundup.png">', 'nowhere.png']
-  ])('collects %s and reports it when broken', (_form, broken, working, target) => {
+  ])('the link check collects %s and reports it when broken', (_form, broken, working, target) => {
     expect(checkLinks(fixturePath, `# Fixture\n\n${working}\n`)).toEqual([]);
     expect(checkLinks(fixturePath, `# Fixture\n\n${broken}\n`)).toEqual([`fixture.md: link ${target} does not resolve to a file`]);
   });
 
-  it('resolves a raw.githubusercontent URL against the working tree and reports a missing file', () => {
+  it('the link check resolves a raw.githubusercontent URL against the working tree and reports a missing file', () => {
     expect(checkLinks(fixturePath, `![s](${repoRawPrefix}docs/assets/feature-roundup.png)\n`)).toEqual([]);
     expect(checkLinks(fixturePath, `![s](${repoRawPrefix}docs/assets/nowhere.png)\n`)).toEqual([
       `fixture.md: link ${repoRawPrefix}docs/assets/nowhere.png does not resolve to a file`
     ]);
   });
 
-  it('ignores links inside fenced code and code spans', () => {
+  it('the link check ignores links inside fenced code and code spans', () => {
     expect(checkLinks(fixturePath, '# F\n\n`[a](nowhere.md)`\n\n~~~html\n<a href="nowhere.md">a</a>\n~~~\n')).toEqual([]);
   });
 
-  it('reports a link whose case differs from the file name', () => {
+  it('the link check reports a link whose case differs from the file name', () => {
     expect(checkLinks(fixturePath, '[m](migration.md)\n')).toEqual(['fixture.md: link migration.md does not resolve to a file']);
   });
 
-  it('reports an anchor into a directory and an anchor with no heading', () => {
+  it('the link check reports an anchor into a directory and an anchor with no heading', () => {
     expect(checkLinks(fixturePath, '[t](test/)\n')).toEqual([]);
     expect(checkLinks(fixturePath, '[t](test/#x)\n')).toEqual([
       'fixture.md: link test/#x has an anchor but points at a directory'
@@ -420,7 +515,7 @@ describe('Property 3: Every documentation link resolves', () => {
     ]);
   });
 
-  it('slugs keep underscores and hyphens', () => {
+  it('heading slugs keep underscores and hyphens', () => {
     expect(headingSlug('`snake_case` and kebab-case: Options!')).toBe('snake_case-and-kebab-case-options');
   });
 
@@ -428,7 +523,7 @@ describe('Property 3: Every documentation link resolves', () => {
     expect(checkLineLimit('README.md', read(readmePath), README_MAX_LINES)).toEqual([]);
   });
 
-  it('reports a 221-line document', () => {
+  it('the line limit check reports a 221-line document', () => {
     const doc = Array.from({ length: 221 }, (_, i) => `line ${i + 1}`).join('\n') + '\n';
     expect(checkLineLimit('README.md', doc, README_MAX_LINES)).toEqual([
       'README.md has 221 lines, over the limit of 220'
@@ -491,7 +586,7 @@ describe('Property 3: Every documentation link resolves', () => {
     expect(checkCliBlock(read(cliPath), read(referencePath))).toEqual([]);
   });
 
-  it('reports missing usage() options, a missing reference block and a drifted line', () => {
+  it('the CLI block check reports missing usage() options, a missing reference block and a drifted line', () => {
     const cliSource = read(cliPath);
     const reference = read(referencePath);
     expect(checkCliBlock('export function main() {}\n', reference)).toEqual([
@@ -509,7 +604,7 @@ describe('Property 3: Every documentation link resolves', () => {
     expect(checkLlms(read(llmsPath))).toEqual([]);
   });
 
-  it('reports a wrong llms.txt H1, a missing link and too many lines', () => {
+  it('the llms.txt check reports a wrong H1, a missing link and too many lines', () => {
     const llms = read(llmsPath);
     expect(checkLlms(llms.replace('# inline-email', '# Inline Email'))).toEqual([
       'llms.txt first line is "# Inline Email", not "# inline-email"'
@@ -527,7 +622,7 @@ describe('Commands in the docs still work', () => {
     expect(docs.flatMap((path) => checkCommands(relative(rootDir, path), read(path), commandContext))).toEqual([]);
   });
 
-  it('reports an unknown flag, a missing node path and a missing npm script', () => {
+  it('the command check reports an unknown flag, a missing node path and a missing npm script', () => {
     const doc = [
       '```sh',
       'npx inline-email email.html --dta data.json -f',

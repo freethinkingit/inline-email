@@ -16,15 +16,16 @@ jobs:
     environment: npm
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
 
       - run: npm ci
-      - run: npm audit --audit-level=high --omit=dev
+      - run: npm run audit
       - run: npm run build
       - run: npm test
       - name: Verify tag matches package version
@@ -42,7 +43,7 @@ jobs:
         run: npm publish --provenance --tag "$NPM_DIST_TAG"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: '*.tgz'
           generate_release_notes: true

@@ -1,18 +1,17 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compileEmailTemplate } from 'inline-email';
 import { main } from '../src/cli.ts';
+import { captureConsole } from './support/console.ts';
+import { expectNoPlaceholdersOrLayoutTags } from './support/leaks.ts';
+import { makeTempDir } from './support/temp-dir.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
 const guidesDir = join(rootDir, 'examples', 'guides');
-
-const placeholderLeak = /{{[#/]?[\w.:-]+}}/;
-const layoutTagLeak = /<\/?(email|container|section|columns|column|button|spacer|divider|hero-image|alert|panel|brand|footer)\b/i;
 
 interface RenderedEmail {
   subject: string;
@@ -33,7 +32,7 @@ const runGuide = (guide: string) => runScript<RenderedEmail>(guide);
 const runTransactional = () => runScript<RenderedEmail[]>('transactional');
 
 async function runCli(args: string[]): Promise<string> {
-  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  const log = captureConsole('log');
   await main(args);
   return String(log.mock.calls[0][0]);
 }
@@ -44,7 +43,7 @@ const cliDir = join(guidesDir, 'cli-preview');
 const guideCommand = readFileSync(join(rootDir, 'docs', 'guides', 'cli-preview.md'), 'utf8')
   .split('\n')
   .find((line) => line.startsWith('node dist/cli.js '));
-if (!guideCommand?.includes(' --data ') || !guideCommand.includes(' --out ')) {
+if (guideCommand === undefined || !guideCommand.includes(' --data ') || !guideCommand.includes(' --out ')) {
   throw new Error('docs/guides/cli-preview.md has no "node dist/cli.js" command with --data and --out');
 }
 const guideArgs = guideCommand.split(' ').slice(2);
@@ -52,9 +51,12 @@ const guideArgs = guideCommand.split(' ').slice(2);
 function cliArgs(dataFile: string, outFile?: string): string[] {
   const args = guideArgs.map((arg) => (arg.startsWith('examples/') ? join(rootDir, arg) : arg));
   args[args.indexOf('--data') + 1] = dataFile;
-  const out = args.indexOf('--out');
-  if (outFile === undefined) args.splice(out, 2);
-  else args[out + 1] = outFile;
+  const outIndex = args.indexOf('--out');
+  if (outFile === undefined) {
+    args.splice(outIndex, 2);
+  } else {
+    args[outIndex + 1] = outFile;
+  }
   return args;
 }
 
@@ -78,18 +80,7 @@ async function renderEmptyDigest(): Promise<string> {
 }
 
 describe('guide examples', () => {
-  let tempDir: string | undefined;
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-
-    if (tempDir) {
-      rmSync(tempDir, { recursive: true, force: true });
-      tempDir = undefined;
-    }
-  });
-
-  it('quickstart renders the name and the slot HTML', () => {
+  it('the quickstart script renders the name, the slot HTML and a text part, with no placeholders or layout tags left', () => {
     const email = runGuide('quickstart');
 
     expect(email.subject).toBe('Welcome to ACME, Dan');
@@ -97,9 +88,10 @@ describe('guide examples', () => {
     expect(email.html).toContain('<p>Your account is ready.</p>');
     expect(email.html).toContain('Invite a teammate');
     expect(typeof email.text).toBe('string');
+    expectNoPlaceholdersOrLayoutTags(email.html);
   });
 
-  it('transactional renders one email per recipient with the slot HTML raw', () => {
+  it('the transactional script renders one email per recipient with the slot HTML raw and no placeholders or layout tags left', () => {
     const emails = runTransactional();
 
     expect(emails).toHaveLength(2);
@@ -109,19 +101,21 @@ describe('guide examples', () => {
 
     for (const email of emails) {
       expect(email.html).toMatch(/<strong>[^<]+<\/strong>/);
+      expectNoPlaceholdersOrLayoutTags(email.html);
     }
   });
 
-  it('marketing embeds the image, shouts, keeps the raw badge and renders the partial', () => {
+  it('the marketing script embeds the image, shouts, keeps the raw badge and renders the partial, with no placeholders or layout tags left', () => {
     const { html } = runGuide('marketing');
 
     expect(html).toContain('data:image/png;base64');
     expect(html).toContain('ACME LAUNCH WEEK IS HERE');
     expect(html).toMatch(/<span style="background:#246BFE[^"]*">Pro<\/span>/);
     expect(html).toContain('The ACME team');
+    expectNoPlaceholdersOrLayoutTags(html);
   });
 
-  it('digest renders at least ten rows, the formatted total and no empty state', () => {
+  it('the digest script renders at least ten rows and the formatted total without the empty state or leftover placeholders and layout tags', () => {
     const { html } = runGuide('digest');
 
     expect(html.match(/<td>\d+<\/td>/g)?.length ?? 0).toBeGreaterThanOrEqual(10);
@@ -130,16 +124,18 @@ describe('guide examples', () => {
     expect(html).not.toContain('Nothing moved in');
     expect(html).toContain('background:#ecfdf3');
     expect(html).toContain('background:#eff8ff');
+    expectNoPlaceholdersOrLayoutTags(html);
   });
 
-  it('digest shows the empty state when there are no rows', async () => {
+  it('the digest template shows the empty state when there are no rows, with no placeholders or layout tags left', async () => {
     const html = await renderEmptyDigest();
 
     expect(html).toContain('Nothing moved in Product Operations this week.');
     expect(html).not.toMatch(/<td>\d+<\/td>/);
+    expectNoPlaceholdersOrLayoutTags(html);
   });
 
-  it('cli-preview renders the order with the commands the guide shows', async () => {
+  it('the cli-preview command from the guide prints the order, writes it with --out and overwrites only with --force', async () => {
     const output = await runCli(cliArgs(join(cliDir, 'data.json')));
 
     expect(output).toContain('Thanks for your order, Maya');
@@ -147,9 +143,9 @@ describe('guide examples', () => {
     expect(output).toContain('Brass pen');
     expect(output).toContain('Desk tray');
     expect(output).toContain('Total: $73.35');
+    expectNoPlaceholdersOrLayoutTags(output);
 
-    tempDir = mkdtempSync(join(tmpdir(), 'inline-email-guides-'));
-    const outFile = join(tempDir, 'preview.html');
+    const outFile = join(makeTempDir('inline-email-guides-'), 'preview.html');
     const outArgs = cliArgs(join(cliDir, 'data.json'), outFile);
 
     await main(outArgs);
@@ -160,47 +156,12 @@ describe('guide examples', () => {
     await expect(main([...outArgs, '--force'])).resolves.toBeUndefined();
   });
 
-  it('cli-preview rejects a strict run with a field removed', async () => {
+  it('the cli-preview command from the guide fails a strict run when the data lacks a field', async () => {
     const data = JSON.parse(readFileSync(join(cliDir, 'data.json'), 'utf8')) as Record<string, unknown>;
     delete data.total;
-    tempDir = mkdtempSync(join(tmpdir(), 'inline-email-guides-'));
-    const dataFile = join(tempDir, 'data.json');
+    const dataFile = join(makeTempDir('inline-email-guides-'), 'data.json');
     writeFileSync(dataFile, JSON.stringify(data), 'utf8');
 
     await expect(main(cliArgs(dataFile))).rejects.toThrow(/"total" not defined/);
-  });
-});
-
-describe('Property 2: Guide examples render clean', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it.each(['quickstart', 'marketing', 'digest'])('%s leaks no placeholders or layout tags', (guide) => {
-    const { html } = runGuide(guide);
-
-    expect(html).not.toMatch(placeholderLeak);
-    expect(html).not.toMatch(layoutTagLeak);
-  });
-
-  it('transactional leaks no placeholders or layout tags', () => {
-    for (const { html } of runTransactional()) {
-      expect(html).not.toMatch(placeholderLeak);
-      expect(html).not.toMatch(layoutTagLeak);
-    }
-  });
-
-  it('the empty digest leaks no placeholders or layout tags', async () => {
-    const html = await renderEmptyDigest();
-
-    expect(html).not.toMatch(placeholderLeak);
-    expect(html).not.toMatch(layoutTagLeak);
-  });
-
-  it('cli-preview leaks no placeholders or layout tags', async () => {
-    const output = await runCli(cliArgs(join(cliDir, 'data.json')));
-
-    expect(output).not.toMatch(placeholderLeak);
-    expect(output).not.toMatch(layoutTagLeak);
   });
 });

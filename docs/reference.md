@@ -68,6 +68,8 @@ const compiled = await compileEmailTemplate({
 - `handlebars`: helpers, partials and other Handlebars compile options. See [Helpers, Partials and Engine Options](#helpers-partials-and-engine-options).
 - `juice`: options passed to juice when CSS is inlined. See [`juice.webResources`](#juicewebresources).
 
+When `css` is given, to `compileEmailTemplate` or `inlineEmailHtml`, only that CSS is inlined and the HTML's `<style>` blocks are left in place; when `css` is empty, whitespace only or left out, the `<style>` blocks are inlined instead.
+
 `renderTemplate(template, data, options)` renders a single template string and takes the same `escape`, `strict` and `handlebars` options.
 
 ### `juice.webResources`
@@ -363,7 +365,7 @@ Supported options:
 
 ```text
 --html <file>          Input HTML file. A positional input file is also supported.
---css <files...>       CSS files to inline.
+--css <files...>       CSS files to inline. The HTML's <style> blocks are then left in place, unless the files hold only whitespace; without CSS, they are inlined instead.
 --out, -o <file>       Write output to a file instead of stdout.
 --inlineImages         Embed referenced images as data URIs. Off by default.
 --noInlineImages       Deprecated and ignored; images are no longer inlined by default.

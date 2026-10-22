@@ -18,6 +18,16 @@ interface CliOptions {
   help: boolean;
 }
 
+/**
+ * Runs the `inline-email` command: inlines the CSS into the HTML file and, with `--data`,
+ * renders the result, then writes it to `--out` or prints it to stdout.
+ *
+ * @param argv - The command-line arguments after the Node and script paths.
+ * @returns Resolves once the output is written or printed, or the help text is printed.
+ * @rejects With a `CliError` when the arguments are invalid, an input file is missing, the out file
+ * exists without `--force`, or the data file cannot be read as a JSON object; compile and render errors
+ * pass through unchanged.
+ */
 export async function main(argv: string[]): Promise<void> {
   const options = parseArgs(argv);
 
@@ -59,7 +69,12 @@ export async function main(argv: string[]): Promise<void> {
     }
   });
 
-  const output = options.data ? compiled.render(readData(options.data)).html : compiled.html;
+  let output = compiled.html;
+
+  if (options.data) {
+    const data = readData(options.data);
+    output = compiled.render(data).html;
+  }
 
   if (options.out) {
     writeFileSync(options.out, output, 'utf8');
@@ -69,6 +84,14 @@ export async function main(argv: string[]): Promise<void> {
   console.log(output);
 }
 
+/**
+ * Parses the command-line arguments into CLI options without touching the file system.
+ *
+ * @param argv - The command-line arguments after the Node and script paths.
+ * @returns The options, with the first positional argument as the HTML file and the rest as CSS
+ * files; when only `--css` lists files, the last of two or more is taken as the HTML file.
+ * @throws A `CliError` for an unknown option or an option missing its value.
+ */
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
     css: [],
@@ -87,9 +110,12 @@ export function parseArgs(argv: string[]): CliOptions {
         options.html = readValue(argv, index, arg);
         index += 1;
         break;
-      case '--css':
-        index = readCssValues(argv, index, options);
+      case '--css': {
+        const cssFiles = readCssValues(argv, index);
+        options.css.push(...cssFiles);
+        index += cssFiles.length;
         break;
+      }
       case '--out':
       case '-o':
         options.out = readValue(argv, index, arg);
@@ -130,31 +156,41 @@ export function parseArgs(argv: string[]): CliOptions {
   }
 
   if (!options.html && options.css.length > 1) {
-    options.html = options.css.pop();
+    // `--css` takes every argument up to the next option, so in `--css base.css input.html` the HTML file arrives last.
+    const lastIndex = options.css.length - 1;
+    options.html = options.css[lastIndex];
+    options.css = options.css.slice(0, lastIndex);
   }
 
   return options;
 }
 
-function readCssValues(argv: string[], index: number, options: CliOptions): number {
-  let cursor = index + 1;
+function readCssValues(argv: string[], index: number): string[] {
+  const cssFiles: string[] = [];
 
-  if (!argv[cursor] || argv[cursor].startsWith('-')) {
+  for (let cursor = index + 1; isOptionValue(argv[cursor]); cursor += 1) {
+    cssFiles.push(argv[cursor]);
+  }
+
+  if (cssFiles.length === 0) {
     throw new CliError('--css requires at least one file.');
   }
 
-  while (argv[cursor] && !argv[cursor].startsWith('-')) {
-    options.css.push(argv[cursor]);
-    cursor += 1;
+  return cssFiles;
+}
+
+function isOptionValue(arg: string | undefined): arg is string {
+  if (arg === undefined || arg === '') {
+    return false;
   }
 
-  return cursor - 1;
+  return !arg.startsWith('-');
 }
 
 function readValue(argv: string[], index: number, option: string): string {
   const value = argv[index + 1];
 
-  if (!value || value.startsWith('-')) {
+  if (!isOptionValue(value)) {
     throw new CliError(`${option} requires a value.`);
   }
 
@@ -171,7 +207,10 @@ function readData(path: string): RenderData | EmailRenderContext {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(readFileSync(path, 'utf8'));
+    const text = readFileSync(path, 'utf8');
+    // Some editors save JSON with a leading byte order mark, which JSON.parse rejects.
+    const textWithoutByteOrderMark = text.replace(/^\uFEFF/, '');
+    parsed = JSON.parse(textWithoutByteOrderMark);
   } catch (error) {
     throw new CliError(`Data file ${path} could not be read as JSON: ${(error as Error).message}`);
   }
@@ -193,7 +232,7 @@ Usage:
 
 Options:
   --html <file>          Input HTML file. A positional input file is also supported.
-  --css <files...>       CSS files to inline.
+  --css <files...>       CSS files to inline. The HTML's <style> blocks are then left in place, unless the files hold only whitespace; without CSS, they are inlined instead.
   --out, -o <file>       Write output to a file instead of stdout.
   --inlineImages         Embed referenced images as data URIs. Off by default.
   --noInlineImages       Deprecated and ignored; images are no longer inlined by default.
@@ -206,6 +245,7 @@ Options:
 class CliError extends Error {}
 
 // npm starts the CLI through a symlinked bin entry, while import.meta.url is always the resolved file.
+/* v8 ignore next -- runs only when Node starts this file as its own process, which in-process tests cannot reach */
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main(process.argv.slice(2)).catch((error: Error) => {
     console.error('\x1b[31m%s\x1b[0m', error.message);

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/freethinkingit/inline-email/discussions/categories/q-a
+    about: Ask how to use inline-email in Discussions Q&A.
+  - name: Report a security vulnerability
+    url: https://github.com/freethinkingit/inline-email/security/policy
+    about: Report security issues privately, never in a public issue, as the security policy describes.
+  - name: Documentation
+    url: https://github.com/freethinkingit/inline-email/tree/master/docs
+    about: Guides and the API and CLI reference.

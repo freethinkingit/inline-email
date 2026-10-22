@@ -1,10 +1,10 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { dirname, extname, join, normalize } from 'node:path';
+import { dirname, extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(__dirname, '..');
+const scriptsDir = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(scriptsDir, '..');
 const outputDir = join(rootDir, 'examples', 'out');
 const host = '127.0.0.1';
 const port = Number(process.env.PORT || 4173);
@@ -22,12 +22,24 @@ if (!existsSync(join(outputDir, 'index.html'))) {
   process.exit(1);
 }
 
+function isServableFile(filePath) {
+  return filePath.startsWith(outputDir + sep) && existsSync(filePath) && statSync(filePath).isFile();
+}
+
+function decodePathname(pathname) {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return undefined;
+  }
+}
+
 const server = createServer((request, response) => {
   const url = new URL(request.url || '/', `http://localhost:${port}`);
-  const pathname = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
-  const filePath = normalize(join(outputDir, pathname));
+  const pathname = url.pathname === '/' ? '/index.html' : decodePathname(url.pathname);
+  const filePath = pathname === undefined ? undefined : normalize(join(outputDir, pathname));
 
-  if (!filePath.startsWith(outputDir) || !existsSync(filePath) || !statSync(filePath).isFile()) {
+  if (filePath === undefined || !isServableFile(filePath)) {
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('Not found');
     return;

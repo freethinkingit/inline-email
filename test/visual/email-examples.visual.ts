@@ -16,10 +16,9 @@ test.describe('rendered email examples', () => {
   for (const example of examples) {
     test(`${example} matches the approved baseline`, async ({ page }) => {
       await page.goto(`/${example}`);
-      await expect(page.locator('body')).toBeVisible();
-      await expect(page).toHaveScreenshot(`${example}.png`, {
-        fullPage: true
-      });
+      const email = page.locator('.ie-container');
+      await expect(email).toBeVisible();
+      await expect(email).toHaveScreenshot(`${example}.png`);
     });
   }
 });

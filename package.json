@@ -22,16 +22,21 @@
     "LICENSE.md"
   ],
   "scripts": {
+    "audit": "npm audit --audit-level=high --omit=dev",
     "build": "npm run clean && tsc -p tsconfig.json",
+    "check": "npm run lint && npm run build && npm test && npm run examples",
     "clean": "rm -rf dist",
+    "coverage:module": "node scripts/module-coverage.js",
     "examples": "npm run build && node scripts/render-examples.js",
     "examples:serve": "npm run examples && node scripts/serve-examples.js",
     "examples:auth": "npm run examples",
+    "lint": "eslint .",
     "prepublishOnly": "npm run build && npm test",
     "prepack": "npm run build",
     "test": "vitest run",
+    "test:package": "node scripts/check-package.js",
     "test:visual": "playwright test",
-    "test:watch": "vitest"
+    "test:watch": "vitest --coverage.enabled=false"
   },
   "bin": {
     "inline-email": "dist/cli.js"
@@ -43,10 +48,16 @@
     "juice": "^12.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
     "@types/node": "^20.14.15",
+    "@vitest/coverage-v8": "^4.1.12",
+    "eslint": "^10.13.0",
+    "eslint-plugin-jsdoc": "^63.3.3",
+    "globals": "^17.13.0",
     "typescript": "^5.5.4",
-    "vitest": "^4.1.8"
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",
@@ -69,5 +80,12 @@
   "homepage": "https://github.com/freethinkingit/inline-email#readme",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.13.0 || >=24",
+      "onFail": "warn"
+    }
   }
 }

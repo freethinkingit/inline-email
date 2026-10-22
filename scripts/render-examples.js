@@ -4,8 +4,8 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileEmailTemplate } from '../dist/index.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(__dirname, '..');
+const scriptsDir = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(scriptsDir, '..');
 const examplesDir = join(rootDir, 'examples');
 const outputDir = join(examplesDir, 'out');
 const sharedCss = readFileSync(join(examplesDir, 'auth', 'shared.css'), 'utf8');
@@ -181,31 +181,30 @@ const examples = [
 ];
 
 const guidesDir = join(examplesDir, 'guides');
-const runGuideScript = (guide) =>
-  JSON.parse(execFileSync(process.execPath, [join(guidesDir, guide, 'send.mjs')], { cwd: rootDir, encoding: 'utf8' }));
 const cliPreviewDir = join(guidesDir, 'cli-preview');
+
+function runGuideScript(guide) {
+  const output = execFileSync(process.execPath, [join(guidesDir, guide, 'send.mjs')], { cwd: rootDir, encoding: 'utf8' });
+  return JSON.parse(output);
+}
+
+function renderCliPreview() {
+  const cliArguments = [
+    join(rootDir, 'dist', 'cli.js'),
+    join(cliPreviewDir, 'email.html'),
+    '--css',
+    join(cliPreviewDir, 'email.css'),
+    '--data',
+    join(cliPreviewDir, 'data.json'),
+    '--strict'
+  ];
+  return execFileSync(process.execPath, cliArguments, { encoding: 'utf8' });
+}
 
 // Each guide's email is rendered by the guide's own script or CLI command, so the gallery shows exactly what the guide produces.
 const guideEmails = [
   { title: 'Transactional Welcome', outputFile: 'guides-transactional.html', html: () => runGuideScript('transactional')[0].html },
-  {
-    title: 'CLI Preview Order',
-    outputFile: 'guides-cli-preview.html',
-    html: () =>
-      execFileSync(
-        process.execPath,
-        [
-          join(rootDir, 'dist', 'cli.js'),
-          join(cliPreviewDir, 'email.html'),
-          '--css',
-          join(cliPreviewDir, 'email.css'),
-          '--data',
-          join(cliPreviewDir, 'data.json'),
-          '--strict'
-        ],
-        { encoding: 'utf8' }
-      )
-  },
+  { title: 'CLI Preview Order', outputFile: 'guides-cli-preview.html', html: renderCliPreview },
   { title: 'Marketing Launch', outputFile: 'guides-marketing.html', html: () => runGuideScript('marketing').html },
   { title: 'Weekly Digest', outputFile: 'guides-digest.html', html: () => runGuideScript('digest').html }
 ];
@@ -245,30 +244,30 @@ async function main() {
   writeFileSync(join(outputDir, 'index.html'), renderIndex(rendered), 'utf8');
 }
 
-function renderIndex(rendered) {
-  const categories = [...new Set(rendered.map((example) => example.category))];
-  const sections = categories
-    .map((category) => {
-      const cards = rendered
-        .filter((example) => example.category === category)
-        .map(
-          (example) => `
+function renderCard(example) {
+  return `
             <article class="card">
               <header>
                 <h3>${escapeHtml(example.title)}</h3>
                 <a href="./${example.outputFile}">Open full email</a>
               </header>
               <iframe src="./${example.outputFile}" title="${escapeHtml(example.title)}"></iframe>
-            </article>`
-        )
-        .join('\n');
+            </article>`;
+}
 
-      return `<section>
+function renderSection(category, rendered) {
+  const examplesInCategory = rendered.filter((example) => example.category === category);
+  const cards = examplesInCategory.map(renderCard).join('\n');
+
+  return `<section>
         <h2>${escapeHtml(category)}</h2>
         <div class="grid">${cards}</div>
       </section>`;
-    })
-    .join('\n');
+}
+
+function renderIndex(rendered) {
+  const categories = [...new Set(rendered.map((example) => example.category))];
+  const sections = categories.map((category) => renderSection(category, rendered)).join('\n');
 
   return `<!doctype html>
 <html>

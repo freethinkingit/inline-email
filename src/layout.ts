@@ -9,31 +9,55 @@ const RESPONSIVE_STYLE = `<style data-ie-preserve-style>
 }
 </style>`;
 
+const NOT_A_TAG_START = '<(?![A-Za-z/!])';
+const DOUBLE_QUOTED_VALUE = `"(?:[^"<]|${NOT_A_TAG_START})*"`;
+const SINGLE_QUOTED_VALUE = `'(?:[^'<]|${NOT_A_TAG_START})*'`;
+// A quote opens a value only right after `=`, and only if it closes before the next tag starts, so a `>`
+// inside a quoted value does not end the tag and a stray quote cannot swallow the tags after it.
+const TAG_ATTRIBUTES = `(?:[^>=]|=\\s*${DOUBLE_QUOTED_VALUE}|=\\s*${SINGLE_QUOTED_VALUE}|=(?!\\s*${DOUBLE_QUOTED_VALUE}|\\s*${SINGLE_QUOTED_VALUE}))*`;
+
+// Attributes are read in order and a quoted value is consumed whole, so text inside a value such as
+// alt="x width=5" is never read as an attribute of its own.
+const ATTRIBUTE = /([\w:-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
+
+const HEAD_TAG = new RegExp(`<head\\b(${TAG_ATTRIBUTES})>`, 'i');
+const PREVIEW_TAG = new RegExp(`<preview\\b${TAG_ATTRIBUTES}>([\\s\\S]*?)<\\/preview>`, 'gi');
+
+/**
+ * Expands the layout tags (`<email>`, `<container>`, `<section>`, `<columns>`, `<button>`, `<image>` and the
+ * rest) into table-based email HTML, and makes sure the responsive style block is present.
+ *
+ * @param source - HTML that may contain layout tags.
+ * @returns The HTML with every layout tag expanded and the responsive style block added once.
+ * @throws {Error} When an `<image>` or `<hero-image>` tag has no `src` attribute.
+ */
 export function renderResponsiveLayout(source: string): string {
   let html = source;
 
-  html = html.replace(/<preview\b[^>]*>([\s\S]*?)<\/preview>/gi, (_match, content: string) => {
-    return `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${content}</div>`;
-  });
+  html = html.replace(PREVIEW_TAG, (_match, content: string) => renderPreview(content));
 
-  html = replacePairedTag(html, 'spacer', (_attrs, content) => renderSpacer(parseSize(content.trim() || '24')));
-  html = replaceSelfClosingTag(html, 'spacer', (attrs) => renderSpacer(readNumberAttribute(attrs, 'size', 24)));
-  html = replaceSelfClosingTag(html, 'divider', (attrs) => renderDivider(attrs));
-  html = replaceSelfClosingTag(html, 'image', (attrs) => renderImage(attrs));
-  html = replaceSelfClosingTag(html, 'hero-image', (attrs) => renderHeroImage(attrs));
-  html = replacePairedTag(html, 'otp', (attrs, content) => renderOtp(attrs, content));
-  html = replacePairedTag(html, 'alert', (attrs, content) => renderAlert(attrs, content));
-  html = replacePairedTag(html, 'panel', (attrs, content) => renderPanel(attrs, content));
-  html = replacePairedTag(html, 'brand', (attrs, content) => renderBrand(attrs, content));
-  html = replacePairedTag(html, 'button', (attrs, content) => renderButton(attrs, content));
-  html = replacePairedTag(html, 'column', (attrs, content) => renderColumn(attrs, content));
-  html = replacePairedTag(html, 'columns', (_attrs, content) => renderColumns(content));
-  html = replacePairedTag(html, 'section', (attrs, content) => renderSection(attrs, content));
-  html = replacePairedTag(html, 'footer', (attrs, content) => renderFooter(attrs, content));
-  html = replacePairedTag(html, 'container', (_attrs, content) => renderContainer(content));
-  html = replacePairedTag(html, 'email', (_attrs, content) => renderEmail(content));
+  html = replacePairedTag(html, 'spacer', (_attributes, content) => renderSpacer(parseSize(content.trim() || '24')));
+  html = replaceSelfClosingTag(html, 'spacer', (attributes) => renderSpacer(readNumberAttribute(attributes, 'size', 24)));
+  html = replaceSelfClosingTag(html, 'divider', (attributes) => renderDivider(attributes));
+  html = replaceSelfClosingTag(html, 'image', (attributes) => renderImage(attributes));
+  html = replaceSelfClosingTag(html, 'hero-image', (attributes) => renderHeroImage(attributes));
+  html = replacePairedTag(html, 'otp', (attributes, content) => renderOtp(attributes, content));
+  html = replacePairedTag(html, 'alert', (attributes, content) => renderAlert(attributes, content));
+  html = replacePairedTag(html, 'panel', (attributes, content) => renderPanel(attributes, content));
+  html = replacePairedTag(html, 'brand', (attributes, content) => renderBrand(attributes, content));
+  html = replacePairedTag(html, 'button', (attributes, content) => renderButton(attributes, content));
+  html = replacePairedTag(html, 'column', (attributes, content) => renderColumn(attributes, content));
+  html = replacePairedTag(html, 'columns', (_attributes, content) => renderColumns(content));
+  html = replacePairedTag(html, 'section', (attributes, content) => renderSection(attributes, content));
+  html = replacePairedTag(html, 'footer', (attributes, content) => renderFooter(attributes, content));
+  html = replacePairedTag(html, 'container', (_attributes, content) => renderContainer(content));
+  html = replacePairedTag(html, 'email', (_attributes, content) => renderEmail(content));
 
   return ensureResponsiveStyle(html);
+}
+
+function renderPreview(content: string): string {
+  return `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${content}</div>`;
 }
 
 function renderEmail(content: string): string {
@@ -64,10 +88,14 @@ function renderContainer(content: string): string {
 </table>`;
 }
 
-function renderSection(attrs: string, content: string): string {
-  const padding = readNumberAttribute(attrs, 'padding', 32);
-  const background = readAttribute(attrs, 'background') ?? '#ffffff';
+function renderSection(attributes: string, content: string): string {
+  const padding = readNumberAttribute(attributes, 'padding', 32);
+  const background = readAttribute(attributes, 'background') ?? '#ffffff';
 
+  return renderSectionTable(padding, background, content);
+}
+
+function renderSectionTable(padding: number, background: string, content: string): string {
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${escapeAttribute(background)};">
   <tr>
     <td class="ie-section" style="padding:${padding}px;">${content}</td>
@@ -81,18 +109,18 @@ function renderColumns(content: string): string {
 </table>`;
 }
 
-function renderColumn(attrs: string, content: string): string {
-  const width = readAttribute(attrs, 'width') ?? '50%';
-  const padding = readNumberAttribute(attrs, 'padding', 0);
+function renderColumn(attributes: string, content: string): string {
+  const width = readAttribute(attributes, 'width') ?? '50%';
+  const padding = readNumberAttribute(attributes, 'padding', 0);
 
   return `<td class="ie-column" valign="top" width="${escapeAttribute(width)}" style="width:${escapeAttribute(width)};padding:${padding}px;">${content}</td>`;
 }
 
-function renderButton(attrs: string, content: string): string {
-  const href = readAttribute(attrs, 'href') ?? '#';
-  const background = readAttribute(attrs, 'background') ?? '#1f6feb';
-  const color = readAttribute(attrs, 'color') ?? '#ffffff';
-  const radius = readNumberAttribute(attrs, 'radius', 6);
+function renderButton(attributes: string, content: string): string {
+  const href = readAttribute(attributes, 'href') ?? '#';
+  const background = readAttribute(attributes, 'background') ?? '#1f6feb';
+  const color = readAttribute(attributes, 'color') ?? '#ffffff';
+  const radius = readNumberAttribute(attributes, 'radius', 6);
 
   return `<table role="presentation" class="ie-button" cellspacing="0" cellpadding="0" border="0">
   <tr>
@@ -109,9 +137,9 @@ function renderButton(attrs: string, content: string): string {
 </table>`;
 }
 
-function renderBrand(attrs: string, content: string): string {
-  const href = readAttribute(attrs, 'href');
-  const mark = readAttribute(attrs, 'mark') ?? 'I';
+function renderBrand(attributes: string, content: string): string {
+  const href = readAttribute(attributes, 'href');
+  const mark = readAttribute(attributes, 'mark') ?? 'I';
   const text = href
     ? `<a href="${escapeAttribute(href)}" style="color:#17202a;text-decoration:none;">${content}</a>`
     : content;
@@ -130,31 +158,45 @@ function renderBrand(attrs: string, content: string): string {
 </table>`;
 }
 
-function renderImage(attrs: string): string {
-  const src = requiredAttribute(attrs, 'src', 'image');
-  const alt = readAttribute(attrs, 'alt') ?? '';
-  const href = readAttribute(attrs, 'href');
-  const width = readNumberAttribute(attrs, 'width', 600);
-  const height = readAttribute(attrs, 'height');
-  const align = readAttribute(attrs, 'align') ?? 'center';
-  const radius = readNumberAttribute(attrs, 'radius', 0);
-  const img = `<img src="${escapeAttribute(src)}" width="${width}"${height ? ` height="${escapeAttribute(height)}"` : ''} alt="${escapeAttribute(alt)}" border="0" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;">`;
+function renderImage(attributes: string): string {
+  const src = requiredAttribute(attributes, 'src', 'image');
+  const alt = readAttribute(attributes, 'alt') ?? '';
+  const href = readAttribute(attributes, 'href');
+  const width = readNumberAttribute(attributes, 'width', 600);
+  const height = readAttribute(attributes, 'height');
+  const align = readAttribute(attributes, 'align') ?? 'center';
+  const radius = readNumberAttribute(attributes, 'radius', 0);
+  let heightAttribute = '';
+  if (height) {
+    heightAttribute = ` height="${escapeAttribute(height)}"`;
+  }
+
+  const imageTag = `<img src="${escapeAttribute(src)}" width="${width}"${heightAttribute} alt="${escapeAttribute(alt)}" border="0" style="display:block;width:100%;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;">`;
+  let cellContent = imageTag;
+  if (href) {
+    cellContent = `<a href="${escapeAttribute(href)}" style="text-decoration:none;">${imageTag}</a>`;
+  }
 
   return `<table role="presentation" class="ie-image" width="100%" cellspacing="0" cellpadding="0" border="0">
   <tr>
-    <td align="${escapeAttribute(align)}">${href ? `<a href="${escapeAttribute(href)}" style="text-decoration:none;">${img}</a>` : img}</td>
+    <td align="${escapeAttribute(align)}">${cellContent}</td>
   </tr>
 </table>`;
 }
 
-function renderHeroImage(attrs: string): string {
-  const mergedAttrs = attrs.includes('width=') ? attrs : `${attrs} width="600"`;
-  return renderImage(`${mergedAttrs} radius="${readNumberAttribute(attrs, 'radius', 12)}"`);
+function renderHeroImage(attributes: string): string {
+  const radius = readNumberAttribute(attributes, 'radius', 12);
+  let imageAttributes = attributes;
+  if (readAttribute(attributes, 'width') === undefined) {
+    imageAttributes = `${attributes} width="600"`;
+  }
+
+  return renderImage(`${imageAttributes} radius="${radius}"`);
 }
 
-function renderOtp(attrs: string, content: string): string {
-  const background = readAttribute(attrs, 'background') ?? '#f3f7fb';
-  const border = readAttribute(attrs, 'border') ?? '#d7e3ee';
+function renderOtp(attributes: string, content: string): string {
+  const background = readAttribute(attributes, 'background') ?? '#f3f7fb';
+  const border = readAttribute(attributes, 'border') ?? '#d7e3ee';
 
   return `<table role="presentation" class="ie-otp" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${escapeAttribute(background)};border:1px solid ${escapeAttribute(border)};border-radius:8px;">
   <tr>
@@ -163,8 +205,8 @@ function renderOtp(attrs: string, content: string): string {
 </table>`;
 }
 
-function renderAlert(attrs: string, content: string): string {
-  const variant = readAttribute(attrs, 'variant') ?? readAttribute(attrs, 'tone') ?? 'warning';
+function renderAlert(attributes: string, content: string): string {
+  const variant = readAttribute(attributes, 'variant') ?? readAttribute(attributes, 'tone') ?? 'warning';
   const colors = toneColors(variant);
 
   return `<table role="presentation" class="ie-alert" data-ie-component="alert" data-ie-variant="${escapeAttribute(variant)}" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${colors.background};border-left:4px solid ${colors.accent};">
@@ -174,8 +216,8 @@ function renderAlert(attrs: string, content: string): string {
 </table>`;
 }
 
-function renderPanel(attrs: string, content: string): string {
-  const variant = readAttribute(attrs, 'variant') ?? readAttribute(attrs, 'tone') ?? 'neutral';
+function renderPanel(attributes: string, content: string): string {
+  const variant = readAttribute(attributes, 'variant') ?? readAttribute(attributes, 'tone') ?? 'neutral';
   const colors = toneColors(variant);
 
   return `<table role="presentation" class="ie-panel" data-ie-component="panel" data-ie-variant="${escapeAttribute(variant)}" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:${colors.background};border:1px solid ${colors.border};border-radius:8px;">
@@ -185,9 +227,9 @@ function renderPanel(attrs: string, content: string): string {
 </table>`;
 }
 
-function renderDivider(attrs: string): string {
-  const color = readAttribute(attrs, 'color') ?? '#e4e9f0';
-  const size = readNumberAttribute(attrs, 'size', 1);
+function renderDivider(attributes: string): string {
+  const color = readAttribute(attributes, 'color') ?? '#e4e9f0';
+  const size = readNumberAttribute(attributes, 'size', 1);
 
   return `<table role="presentation" class="ie-divider" width="100%" cellspacing="0" cellpadding="0" border="0">
   <tr>
@@ -196,11 +238,11 @@ function renderDivider(attrs: string): string {
 </table>`;
 }
 
-function renderFooter(attrs: string, content: string): string {
-  const padding = readNumberAttribute(attrs, 'padding', 24);
-  const background = readAttribute(attrs, 'background') ?? '#f7f9fc';
+function renderFooter(attributes: string, content: string): string {
+  const padding = readNumberAttribute(attributes, 'padding', 24);
+  const background = readAttribute(attributes, 'background') ?? '#f7f9fc';
 
-  return renderSection(` padding="${padding}" background="${background}"`, content);
+  return renderSectionTable(padding, background, content);
 }
 
 function renderSpacer(size: number): string {
@@ -213,6 +255,10 @@ function renderSpacer(size: number): string {
 
 type ToneColors = { accent: string; background: string; border: string; text: string };
 
+/**
+ * The colours of each built-in `variant` (or `tone`) of `<alert>` and `<panel>`, keyed by name: `neutral`,
+ * `info`, `success`, `warning` and `danger`. Each entry holds the accent, background, border and text colours.
+ */
 export const BUILT_IN_TONES: Readonly<Record<string, ToneColors>> = {
   neutral: { accent: '#667085', background: '#f7f9fc', border: '#d8dee8', text: '#344054' },
   info: { accent: '#1570ef', background: '#eff8ff', border: '#b2ddff', text: '#1849a9' },
@@ -230,8 +276,8 @@ function ensureResponsiveStyle(html: string): string {
     return html;
   }
 
-  if (/<head\b[^>]*>/i.test(html)) {
-    return html.replace(/<head\b([^>]*)>/i, `<head$1>${RESPONSIVE_STYLE}`);
+  if (HEAD_TAG.test(html)) {
+    return html.replace(HEAD_TAG, `<head$1>${RESPONSIVE_STYLE}`);
   }
 
   return `${RESPONSIVE_STYLE}${html}`;
@@ -240,27 +286,27 @@ function ensureResponsiveStyle(html: string): string {
 function replacePairedTag(
   html: string,
   tagName: string,
-  render: (attrs: string, content: string) => string
+  render: (attributes: string, content: string) => string
 ): string {
-  const pattern = new RegExp(`<${tagName}\\b([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, 'gi');
+  const pattern = new RegExp(`<${tagName}\\b(${TAG_ATTRIBUTES})>([\\s\\S]*?)<\\/${tagName}>`, 'gi');
   let previous: string;
   let next = html;
 
   do {
     previous = next;
-    next = previous.replace(pattern, (_match, attrs: string, content: string) => render(attrs, content));
+    next = previous.replace(pattern, (_match, attributes: string, content: string) => render(attributes, content));
   } while (next !== previous);
 
   return next;
 }
 
-function replaceSelfClosingTag(html: string, tagName: string, render: (attrs: string) => string): string {
-  const pattern = new RegExp(`<${tagName}\\b([^>]*)\\s*\\/?>`, 'gi');
-  return html.replace(pattern, (_match, attrs: string) => render(attrs));
+function replaceSelfClosingTag(html: string, tagName: string, render: (attributes: string) => string): string {
+  const pattern = new RegExp(`<${tagName}\\b(${TAG_ATTRIBUTES})\\s*\\/?>`, 'gi');
+  return html.replace(pattern, (_match, attributes: string) => render(attributes));
 }
 
-function readNumberAttribute(attrs: string, name: string, fallback: number): number {
-  return parseSize(readAttribute(attrs, name) ?? String(fallback));
+function readNumberAttribute(attributes: string, name: string, fallback: number): number {
+  return parseSize(readAttribute(attributes, name) ?? String(fallback));
 }
 
 function parseSize(value: string): number {
@@ -268,14 +314,21 @@ function parseSize(value: string): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
-function readAttribute(attrs: string, name: string): string | undefined {
-  const pattern = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i');
-  const match = attrs.match(pattern);
-  return match?.[1] ?? match?.[2] ?? match?.[3];
+function readAttribute(attributes: string, name: string): string | undefined {
+  const wantedName = name.toLowerCase();
+
+  for (const [, attributeName, doubleQuoted, singleQuoted, unquoted] of attributes.matchAll(ATTRIBUTE)) {
+    const value = doubleQuoted ?? singleQuoted ?? unquoted;
+    if (value !== undefined && attributeName.toLowerCase() === wantedName) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
-function requiredAttribute(attrs: string, name: string, tagName: string): string {
-  const value = readAttribute(attrs, name);
+function requiredAttribute(attributes: string, name: string, tagName: string): string {
+  const value = readAttribute(attributes, name);
 
   if (!value) {
     throw new Error(`<${tagName}> requires a ${name} attribute.`);

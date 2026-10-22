@@ -24,7 +24,7 @@ The template lives in `examples/guides/marketing/launch.html`.
       <spacer size="24" />
       <button href="{{launchUrl}}">See what is new</button>
     </section>
-    <footer>{{> signature}}</footer>
+    <footer padding="32">{{> signature}}</footer>
   </container>
 </email>
 ```
@@ -46,7 +46,7 @@ import Handlebars from 'handlebars';
 import { compileEmailTemplate } from 'inline-email';
 
 const html = readFileSync(new URL('./launch.html', import.meta.url), 'utf8');
-const css = '.headline { font-size: 24px; color: #111827; }';
+const css = 'body { font-family: Arial, Helvetica, sans-serif; } .headline { font-size: 24px; color: #111827; }';
 
 const compiled = await compileEmailTemplate({
   subject: '{{headline}}',
@@ -63,10 +63,12 @@ const compiled = await compileEmailTemplate({
   handlebars: {
     helpers: {
       shout: (value) => String(value).toUpperCase(),
-      badge: (value) =>
-        new Handlebars.SafeString(
-          `<span style="background:#246BFE;color:#ffffff;padding:2px 8px;border-radius:4px;">${Handlebars.escapeExpression(value)}</span>`
-        )
+      badge: (value) => {
+        const label = Handlebars.escapeExpression(value);
+        return new Handlebars.SafeString(
+          `<span style="background:#246BFE;color:#ffffff;padding:2px 8px;border-radius:4px;">${label}</span>`
+        );
+      }
     },
     partials: {
       signature: '<p style="color:#6b7280;">The ACME team</p>'
@@ -132,7 +134,7 @@ These are the meaningful lines of the HTML, with the data URI shortened:
 <img width="64" height="64" alt="ACME" src="data:image/png;base64,iVBORw0KGgo...">
 <h1 class="headline" style="font-size: 24px; color: #111827;">ACME LAUNCH WEEK IS HERE</h1>
 <p>Your plan: <span style="background:#246BFE;color:#ffffff;padding:2px 8px;border-radius:4px;">Pro</span></p>
-<td class="ie-section" style="padding:24px;"><p style="color:#6b7280;">The ACME team</p></td>
+<td class="ie-section" style="padding:32px;"><p style="color:#6b7280;">The ACME team</p></td>
 ```
 
 The subject and text are rendered too:

@@ -1,12 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { symlinkSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { makeTempDir } from './support/temp-dir.ts';
 
-describe('published ESM package shape', () => {
-  it('imports the built package and renders through juice without CommonJS require', async () => {
+describe('the published ESM package', () => {
+  it('imports from dist/ and inlines CSS through juice without a CommonJS require', async () => {
     const packageUrl = pathToFileURL(join(process.cwd(), 'dist', 'index.js')).href;
     const { renderEmail } = await import(packageUrl);
 
@@ -27,17 +27,11 @@ describe('published ESM package shape', () => {
   });
 
   it('runs the CLI when started through a symlink, as npm bin links start it', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'inline-email-bin-'));
+    const bin = join(makeTempDir('inline-email-bin-'), 'inline-email');
+    symlinkSync(join(process.cwd(), 'dist', 'cli.js'), bin);
 
-    try {
-      const bin = join(dir, 'inline-email');
-      symlinkSync(join(process.cwd(), 'dist', 'cli.js'), bin);
+    const output = execFileSync(process.execPath, [bin, '--help'], { encoding: 'utf8' });
 
-      const output = execFileSync(process.execPath, [bin, '--help'], { encoding: 'utf8' });
-
-      expect(output).toContain('Usage:');
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+    expect(output).toContain('Usage:');
   });
 });

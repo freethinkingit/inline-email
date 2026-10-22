@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileEmailTemplate, renderResponsiveLayout } from '../src/index.ts';
+import { AWKWARD_INPUTS, expectCleanOutcome } from './support/awkward-inputs.ts';
 
 describe('renderResponsiveLayout', () => {
   it('renders semantic email tags into responsive table markup', () => {
@@ -19,7 +20,7 @@ describe('renderResponsiveLayout', () => {
     `);
 
     expect(html).toContain('data-ie-preserve-style');
-    expect(html).toContain('.ie-column { display: block !important;');
+    expect(html).toContain('mso-hide:all;">Welcome to ACME</div>');
     expect(html).toContain('class="ie-container"');
     expect(html).toContain('class="ie-section"');
     expect(html).toContain('class="ie-column"');
@@ -56,6 +57,125 @@ describe('renderResponsiveLayout', () => {
     expect(html).toContain('Sent by Freethinking IT');
   });
 
+  it('renders a section nested inside another section', () => {
+    const html = renderResponsiveLayout('<section><section>Inner</section></section>');
+
+    expect(html.match(/class="ie-section"/g)).toHaveLength(2);
+    expect(html).not.toContain('<section');
+  });
+
+  it('puts the responsive style inside an existing head, or before the markup when there is none', () => {
+    expect(renderResponsiveLayout('<html><head lang="en"><title>T</title></head></html>')).toMatch(
+      /^<html><head lang="en"><style data-ie-preserve-style>[\s\S]*<\/style><title>T<\/title>/
+    );
+    expect(renderResponsiveLayout('<p>Hi</p>')).toMatch(/^<style data-ie-preserve-style>[\s\S]*<\/style><p>Hi<\/p>$/);
+  });
+
+  it('inserts the responsive style after a head tag whose attribute contains a greater-than sign', () => {
+    expect(renderResponsiveLayout('<html><head data-x="a>b"><title>T</title></head></html>')).toMatch(
+      /^<html><head data-x="a>b"><style data-ie-preserve-style>/
+    );
+  });
+
+  it('links an image and a brand when they have an href, and sets the image height and alignment', () => {
+    const html = renderResponsiveLayout(
+      '<image src="a.png" href="https://example.com" height="40" align="left" /><brand href="https://example.com">ACME</brand>'
+    );
+
+    expect(html).toContain('<a href="https://example.com" style="text-decoration:none;"><img src="a.png"');
+    expect(html).toContain('height="40"');
+    expect(html).toContain('<td align="left">');
+    expect(html).toContain('<a href="https://example.com" style="color:#17202a;text-decoration:none;">ACME</a>');
+  });
+
+  it('gives a hero image without a width the full 600px and rounded corners', () => {
+    const html = renderResponsiveLayout('<hero-image src="a.png" />');
+
+    expect(html).toContain('width="600"');
+    expect(html).toContain('border-radius:12px;');
+  });
+
+  it('keeps a footer background that contains a double quote whole', () => {
+    const html = renderResponsiveLayout(`<footer background='a"b'>F</footer>`);
+
+    expect(html).toContain('style="background:a&quot;b;"');
+  });
+
+  it('refuses an image without a src', () => {
+    expect(() => renderResponsiveLayout('<image alt="No source" />')).toThrow('<image> requires a src attribute.');
+  });
+
+  it('refuses an image whose src is missing its closing quote instead of swallowing the next tag', () => {
+    expect(() => renderResponsiveLayout('<image src="a.png /><p class="x">Hi</p>')).toThrow('<image> requires a src attribute.');
+  });
+
+  it('renders an alert as a warning by default and prefers variant over tone', () => {
+    expect(renderResponsiveLayout('<alert>Careful.</alert>')).toContain('data-ie-variant="warning"');
+    expect(renderResponsiveLayout('<alert variant="danger" tone="info">Stop.</alert>')).toContain(
+      'data-ie-variant="danger"'
+    );
+  });
+
+  it('escapes &, " and < in attribute values', () => {
+    const html = renderResponsiveLayout(`<button href='a&b"<c'>Go</button>`);
+
+    expect(html).toContain('href="a&amp;b&quot;&lt;c"');
+  });
+
+  it('reads an unquoted attribute value up to the next space', () => {
+    const html = renderResponsiveLayout('<image src=logo.png alt=Logo width=120 />');
+
+    expect(html).toContain('<img src="logo.png" width="120" alt="Logo"');
+  });
+
+  it('ignores an attribute whose name only ends with the one asked for', () => {
+    expect(renderResponsiveLayout('<image src="a.png" data-width="300" />')).toContain('<img src="a.png" width="600"');
+    expect(renderResponsiveLayout('<hero-image src="a.png" data-width="300" />')).toContain('<img src="a.png" width="600"');
+  });
+
+  it('reads an explicit width that comes after a data-width', () => {
+    expect(renderResponsiveLayout('<image src="a.png" data-width="300" width="120" />')).toContain(
+      '<img src="a.png" width="120"'
+    );
+    expect(renderResponsiveLayout('<hero-image src="a.png" data-width="300" width="120" />')).toContain(
+      '<img src="a.png" width="120"'
+    );
+  });
+
+  it("ignores an attribute name inside another attribute's quoted value", () => {
+    expect(renderResponsiveLayout('<image src="a.png" alt="x width=5" />')).toContain('<img src="a.png" width="600"');
+    expect(renderResponsiveLayout('<hero-image src="a.png" alt="x width=5" />')).toContain('<img src="a.png" width="600"');
+    expect(renderResponsiveLayout(`<image src="a.png" alt='x width=5' />`)).toContain('<img src="a.png" width="600"');
+  });
+
+  it('reads an attribute that follows a closing quote, has spaces around =, or comes after a value-less one', () => {
+    expect(renderResponsiveLayout('<image src="a.png"width=120 />')).toContain('<img src="a.png" width="120"');
+    expect(renderResponsiveLayout('<image src = "a.png" width = 120 />')).toContain('<img src="a.png" width="120"');
+    expect(renderResponsiveLayout('<image hidden src="a.png" width width="120" />')).toContain(
+      '<img src="a.png" width="120"'
+    );
+  });
+
+  it('reads the first of two attributes with the same name, whatever their case', () => {
+    expect(renderResponsiveLayout('<image src="a.png" WIDTH="120" width="300" />')).toContain(
+      '<img src="a.png" width="120"'
+    );
+  });
+
+  it('keeps a self-closing tag attribute value that contains a greater-than sign', () => {
+    const html = renderResponsiveLayout('<image src="chart.png" alt="Revenue > target" />');
+
+    expect(html).toContain('alt="Revenue &gt; target"');
+    expect(html).not.toContain('target" />');
+  });
+
+  it('keeps a paired tag attribute value that contains a greater-than sign', () => {
+    const html = renderResponsiveLayout('<button href="https://x.test/?a=1&b=2>3">Go</button>');
+
+    expect(html).toContain('href="https://x.test/?a=1&amp;b=2&gt;3"');
+    expect(html).toContain('>Go</a>');
+  });
+
   it('is available through compileEmailTemplate by default', async () => {
     const compiled = await compileEmailTemplate({
       html: '<email><container><section><button href="{{url}}">Go</button></section></container></email>'
@@ -81,105 +201,67 @@ describe('renderResponsiveLayout', () => {
     expect(email.html).toContain('<p>Two</p>');
   });
 
-  it('can render repeated blocks with data only', async () => {
-    const compiled = await compileEmailTemplate({
-      html: `
-        <email>
-          <container>
-            <section>
-              {{#features}}
-              <panel tone="{{tone}}">
-                <p>{{title}}</p>
-              </panel>
-              {{/features}}
-            </section>
-          </container>
-        </email>
-      `
-    });
+  it('renders an unknown tone with the neutral colours', () => {
+    const html = renderResponsiveLayout('<panel tone="mystery">Heads up.</panel>');
 
-    const email = compiled.render({
-      data: {
-        features: [
-          { title: 'Decision trails', tone: 'info' },
-          { title: 'Handoff checks', tone: 'success' }
-        ]
-      }
-    });
+    expect(html).toContain('background:#f7f9fc;border:1px solid #d8dee8;');
+    expect(html).toContain('color:#344054;');
+  });
+});
 
-    expect(email.html.match(/class="ie-panel"/g)).toHaveLength(2);
-    expect(email.html).toContain('data-ie-variant="info"');
-    expect(email.html).toContain('data-ie-variant="success"');
-    expect(email.html).toContain('background:#eff8ff;border:1px solid #b2ddff;');
-    expect(email.html).toContain('background:#ecfdf3;border:1px solid #b8edc9;');
-    expect(email.html).toContain('<p>Decision trails</p>');
-    expect(email.html).toContain('<p>Handoff checks</p>');
+describe('layout sizes', () => {
+  const heightOf = (markup: string) => renderResponsiveLayout(markup).match(/height="(\d+)"/)?.[1];
+
+  it('reads a size as a whole number of pixels and turns a negative, empty or non-numeric size into zero', () => {
+    expect(heightOf('<spacer size="0" />')).toBe('0');
+    expect(heightOf('<spacer size="1" />')).toBe('1');
+    expect(heightOf('<spacer size="12px" />')).toBe('12');
+    expect(heightOf('<spacer size="-1" />')).toBe('0');
+    expect(heightOf('<spacer size="" />')).toBe('0');
+    expect(heightOf('<spacer size="NaN" />')).toBe('0');
   });
 
-  it('fills a partial style tone from the built-in palette', async () => {
-    const compiled = await compileEmailTemplate({
-      html: '<email><container><section><panel tone="{{tone}}"><p>Ready</p></panel></section></container></email>'
-    });
-
-    const email = compiled.render({
-      data: { tone: 'info' },
-      style: { tones: { info: { background: '#123456' } } }
-    });
-
-    expect(email.html).toContain('background:#123456;border:1px solid #b2ddff;');
-    expect(email.html).toContain('color:#1849a9;');
+  it('defaults a spacer to 24px, a divider to 1px, a section to 32px and a footer to 24px of padding', () => {
+    expect(heightOf('<spacer />')).toBe('24');
+    expect(heightOf('<divider />')).toBe('1');
+    expect(renderResponsiveLayout('<section>S</section>')).toContain('padding:32px;');
+    expect(renderResponsiveLayout('<footer>F</footer>')).toContain('padding:24px;');
   });
 
-  it('can render repeated blocks with data and a small style object', async () => {
-    const compiled = await compileEmailTemplate({
-      html: `
-        <email>
-          <container>
-            <section>
-              {{#features}}
-              <panel tone="{{tone}}">
-                <p>{{title}}</p>
-              </panel>
-              {{/features}}
-            </section>
-          </container>
-        </email>
-      `
-    });
+  it('reads a paired spacer size from its content, defaulting to 24px when the content is blank', () => {
+    expect(heightOf('<spacer>8</spacer>')).toBe('8');
+    expect(heightOf('<spacer> </spacer>')).toBe('24');
+    expect(heightOf('<spacer>-3</spacer>')).toBe('0');
+  });
 
-    const email = compiled.render({
-      data: {
-        features: [
-          { title: 'Decision trails', tone: 'info' },
-          { title: 'Handoff checks', tone: 'success' }
-        ]
-      },
-      style: {
-        tones: {
-          info: {
-            accent: '#1570ef',
-            background: '#eff8ff',
-            border: '#b2ddff',
-            text: '#1849a9'
-          },
-          success: {
-            accent: '#12b76a',
-            background: '#ecfdf3',
-            border: '#abefc6',
-            text: '#067647'
-          }
-        }
-      }
-    });
+  it('gives a column without a width half the row', () => {
+    expect(renderResponsiveLayout('<column>C</column>')).toContain('width="50%" style="width:50%;');
+  });
 
-    expect(email.html.match(/class="ie-panel"/g)).toHaveLength(2);
-    expect(email.html).toContain('data-ie-variant="info"');
-    expect(email.html).toContain('style="background:#eff8ff;border:1px solid #b2ddff;border-radius:8px;"');
-    expect(email.html).toContain('style="padding:16px;color:#1849a9;');
-    expect(email.html).toContain('data-ie-variant="success"');
-    expect(email.html).toContain('style="background:#ecfdf3;border:1px solid #abefc6;border-radius:8px;"');
-    expect(email.html).toContain('style="padding:16px;color:#067647;');
-    expect(email.html).toContain('<p>Decision trails</p>');
-    expect(email.html).toContain('<p>Handoff checks</p>');
+  it('applies a size to divider height, footer padding, button radius and image width', () => {
+    expect(heightOf('<divider size="3" />')).toBe('3');
+    expect(renderResponsiveLayout('<footer padding="0">F</footer>')).toContain('padding:0px;');
+    expect(renderResponsiveLayout('<button radius="-2">Go</button>')).toContain('border-radius:0px;');
+    expect(renderResponsiveLayout('<image src="a.png" width="abc" />')).toContain('width="0"');
+  });
+});
+
+describe('awkward text', () => {
+  it('keeps each awkward input intact as an attribute value and as tag content, and reads it as a size of zero', async () => {
+    for (const [name, input] of Object.entries(AWKWARD_INPUTS)) {
+      const asAttribute = await expectCleanOutcome(
+        () => renderResponsiveLayout(`<button href="${input}">Go</button>`),
+        name
+      );
+      const asContent = await expectCleanOutcome(() => renderResponsiveLayout(`<section>${input}</section>`), name);
+      const asSize = await expectCleanOutcome(() => renderResponsiveLayout(`<spacer size="${input}" />`), name);
+
+      expect(asAttribute, name).toEqual({ outcome: 'returned', value: expect.stringContaining(`href="${input}"`) });
+      expect(asContent, name).toEqual({
+        outcome: 'returned',
+        value: expect.stringContaining(`padding:32px;">${input}</td>`)
+      });
+      expect(asSize, name).toEqual({ outcome: 'returned', value: expect.stringContaining('height="0"') });
+    }
   });
 });

@@ -1,5 +1,5 @@
 import Handlebars from 'handlebars';
-import type { EscapeMode, RenderData, RenderTemplateOptions } from './types.js';
+import type { EngineOptions, EscapeMode, RenderData, RenderTemplateOptions } from './types.js';
 
 const SLOT_PREFIX = 'slot:';
 const RESERVED_ENGINE_OPTIONS = new Set(['helpers', 'partials', 'compat', 'noEscape', 'strict']);
@@ -7,6 +7,13 @@ const SLOT_HELPER = 'lookup';
 
 export type CompiledTemplateFn = (data: RenderData) => string;
 
+/**
+ * Resolves the `escape` option to the escape mode a template compiles with.
+ *
+ * @param value - The `escape` option: `'html'`, `'none'`, `true`, `false` or left out.
+ * @returns `'html'` for `'html'`, `true` or a left-out option, and `'none'` for `'none'` or `false`.
+ * @throws When the value is none of those.
+ */
 export function normalizeEscapeMode(value: EscapeMode | boolean | undefined): EscapeMode {
   if (value === undefined || value === true) {
     return 'html';
@@ -28,7 +35,7 @@ class SlotRewriter extends Handlebars.Visitor {
     const slotName = slotNameOf(node);
 
     if (slotName !== undefined) {
-      const { loc } = node.path;
+      const location = node.path.loc;
 
       node.path = {
         type: 'PathExpression',
@@ -36,7 +43,7 @@ class SlotRewriter extends Handlebars.Visitor {
         depth: 0,
         parts: [SLOT_HELPER],
         original: SLOT_HELPER,
-        loc
+        loc: location
       } as hbs.AST.PathExpression;
       node.params = [
         {
@@ -45,9 +52,9 @@ class SlotRewriter extends Handlebars.Visitor {
           depth: 0,
           parts: ['root', 'slots'],
           original: '@root.slots',
-          loc
+          loc: location
         } as hbs.AST.PathExpression,
-        { type: 'StringLiteral', value: slotName, original: slotName, loc } as hbs.AST.StringLiteral
+        { type: 'StringLiteral', value: slotName, original: slotName, loc: location } as hbs.AST.StringLiteral
       ];
       node.escaped = false;
     }
@@ -77,6 +84,9 @@ function slotNameOf(node: hbs.AST.MustacheStatement): string | undefined {
  * sets itself. With `strict` on, the template compiles in Handlebars' strict mode without
  * enclosing-context lookup.
  *
+ * @param source - The template text.
+ * @param options - The escape mode, strict mode and Handlebars options to compile with.
+ * @returns A function that renders the template with the data it is given.
  * @throws When the escape option is invalid, or the template or a partial is malformed.
  * The returned function throws Handlebars' `"name" not defined` error when `strict` is on and
  * a reference or bare block names a missing field, and `Strict render failed: ...` with the
@@ -84,35 +94,32 @@ function slotNameOf(node: hbs.AST.MustacheStatement): string | undefined {
  * through a missing or null object does.
  */
 export function compileTemplate(source: string, options: RenderTemplateOptions = {}): CompiledTemplateFn {
-  const mode = normalizeEscapeMode(options.escape);
+  const escapeMode = normalizeEscapeMode(options.escape);
   const engineOptions = options.handlebars ?? {};
   const strict = options.strict === true;
-  const instance = Handlebars.create();
-  const builtInLookup = instance.helpers[SLOT_HELPER];
+  const isolatedHandlebars = Handlebars.create();
+  const builtInLookup = isolatedHandlebars.helpers[SLOT_HELPER];
 
-  instance.registerHelper(engineOptions.helpers ?? {});
-  instance.registerHelper(SLOT_HELPER, builtInLookup);
+  isolatedHandlebars.registerHelper(engineOptions.helpers ?? {});
+  isolatedHandlebars.registerHelper(SLOT_HELPER, builtInLookup);
 
-  const passthrough = Object.fromEntries(
-    Object.entries(engineOptions).filter(([key]) => !RESERVED_ENGINE_OPTIONS.has(key))
-  );
   const compileOptions: CompileOptions = {
-    ...passthrough,
+    ...unreservedEngineOptions(engineOptions),
     compat: !strict,
     strict,
-    noEscape: mode === 'none'
+    noEscape: escapeMode === 'none'
   };
-  const compile = (text: string) => compileThroughPipeline(instance, text, compileOptions);
+  const compile = (text: string) => compileThroughPipeline(isolatedHandlebars, text, compileOptions);
 
   // A string partial would be compiled lazily by Handlebars and skip the slot rewrite.
   for (const [name, partial] of Object.entries(engineOptions.partials ?? {})) {
-    instance.registerPartial(name, compile(partial));
+    isolatedHandlebars.registerPartial(name, compile(partial));
   }
 
   const template = compile(source);
 
   return (data) => {
-    const root = { ...data, slots: data.slots ?? {} };
+    const root = renderRootOf(data);
 
     if (!strict) {
       return template(root);
@@ -124,6 +131,27 @@ export function compileTemplate(source: string, options: RenderTemplateOptions =
       throw describeStrictFailure(error);
     }
   };
+}
+
+function unreservedEngineOptions(engineOptions: EngineOptions): Record<string, unknown> {
+  const unreserved: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(engineOptions)) {
+    if (!RESERVED_ENGINE_OPTIONS.has(key)) {
+      unreserved[key] = value;
+    }
+  }
+
+  return unreserved;
+}
+
+// Callers outside TypeScript can pass null or no data; both render as empty data.
+function renderRootOf(data: RenderData | null | undefined): RenderData {
+  if (data === null || data === undefined) {
+    return { slots: {} };
+  }
+
+  return { ...data, slots: data.slots ?? {} };
 }
 
 // Handlebars' strict lookup reads through a missing or null object with a plain property access,
@@ -140,7 +168,7 @@ function describeStrictFailure(error: unknown): unknown {
 }
 
 function compileThroughPipeline(
-  instance: typeof Handlebars,
+  handlebars: typeof Handlebars,
   source: string,
   compileOptions: CompileOptions
 ): HandlebarsTemplateDelegate {
@@ -148,7 +176,7 @@ function compileThroughPipeline(
 
   new SlotRewriter().accept(ast);
   // compile defers code generation to the first render; precompile surfaces compiler faults now.
-  instance.precompile(ast, compileOptions);
+  handlebars.precompile(ast, compileOptions);
 
-  return instance.compile(ast, compileOptions);
+  return handlebars.compile(ast, compileOptions);
 }
