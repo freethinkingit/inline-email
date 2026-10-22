@@ -63,6 +63,13 @@ export interface JuiceOptions {
 
 export type TemplateTransform = (html: string) => string | Promise<string>;
 
+/**
+ * Names a responsive layout flavor: the built-in layout tags (`'default'`) or
+ * Inky (`'inky'`). A new flavor needs a member here, its layout function and
+ * an accepted CLI value.
+ */
+export type LayoutFlavor = 'default' | 'inky';
+
 export interface ResponsiveLayoutOptions {
   enabled?: boolean;
 }
@@ -72,7 +79,7 @@ export interface CompileEmailTemplateOptions {
   css?: string;
   subject?: string;
   text?: string;
-  responsive?: boolean | ResponsiveLayoutOptions;
+  responsive?: boolean | LayoutFlavor | ResponsiveLayoutOptions;
   transform?: TemplateTransform;
   juice?: JuiceOptions;
   escape?: EscapeMode | boolean;

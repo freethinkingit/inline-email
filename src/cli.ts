@@ -4,13 +4,14 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { compileEmailTemplate } from './compile.js';
-import type { EmailRenderContext, RenderData } from './types.js';
+import type { EmailRenderContext, LayoutFlavor, RenderData } from './types.js';
 
 interface CliOptions {
   html?: string;
   css: string[];
   out?: string;
   data?: string;
+  responsive?: boolean | LayoutFlavor;
   strict: boolean;
   inlineImages: boolean;
   deprecatedFlag: boolean;
@@ -61,6 +62,7 @@ export async function main(argv: string[]): Promise<void> {
     html,
     css,
     strict: options.strict,
+    responsive: options.responsive,
     juice: {
       webResources: {
         images: options.inlineImages,
@@ -90,7 +92,7 @@ export async function main(argv: string[]): Promise<void> {
  * @param argv - The command-line arguments after the Node and script paths.
  * @returns The options, with the first positional argument as the HTML file and the rest as CSS
  * files; when only `--css` lists files, the last of two or more is taken as the HTML file.
- * @throws A `CliError` for an unknown option or an option missing its value.
+ * @throws A `CliError` for an unknown option, an option missing its value, or an unknown `--responsive` value.
  */
 export function parseArgs(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -119,6 +121,10 @@ export function parseArgs(argv: string[]): CliOptions {
       case '--out':
       case '-o':
         options.out = readValue(argv, index, arg);
+        index += 1;
+        break;
+      case '--responsive':
+        options.responsive = readResponsive(readValue(argv, index, arg));
         index += 1;
         break;
       case '--data':
@@ -197,6 +203,18 @@ function readValue(argv: string[], index: number, option: string): string {
   return value;
 }
 
+function readResponsive(value: string): false | LayoutFlavor {
+  switch (value) {
+    case 'default':
+    case 'inky':
+      return value;
+    case 'false':
+      return false;
+    default:
+      throw new CliError(`Unknown --responsive value ${value}. Use default, inky or false.`);
+  }
+}
+
 function assertReadable(path: string, message: string): void {
   if (!existsSync(path)) {
     throw new CliError(message);
@@ -234,6 +252,7 @@ Options:
   --html <file>          Input HTML file. A positional input file is also supported.
   --css <files...>       CSS files to inline. The HTML's <style> blocks are then left in place, unless the files hold only whitespace; without CSS, they are inlined instead.
   --out, -o <file>       Write output to a file instead of stdout.
+  --responsive <flavor>  Layout flavor: default, inky or false. Without it, layout tags in the HTML get the built-in layout.
   --inlineImages         Embed referenced images as data URIs. Off by default.
   --noInlineImages       Deprecated and ignored; images are no longer inlined by default.
   --data <file>          Render the template with this JSON file and write the rendered HTML.

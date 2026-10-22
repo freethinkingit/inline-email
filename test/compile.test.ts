@@ -1,15 +1,21 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Handlebars from 'handlebars';
+// @ts-expect-error Inky 1 ships no type declarations, and the tests only call releaseTheKraken.
+import { Inky } from 'inky';
 import { describe, expect, it } from 'vitest';
+import { LAYOUT_TAG_PATTERN } from '../src/compile.ts';
 import { compileEmailTemplate, inlineEmailHtml, renderEmail } from '../src/index.ts';
 import type { CompileEmailTemplateOptions } from '../src/index.ts';
+import { renderResponsiveLayout } from '../src/layout.ts';
 import { captureConsole } from './support/console.ts';
 import { makeTempDir } from './support/temp-dir.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
+const examplesDir = join(rootDir, 'examples');
 
 describe('compileEmailTemplate', () => {
   it('inlines CSS once and renders dynamic data later', async () => {
@@ -200,6 +206,101 @@ describe('compileEmailTemplate', () => {
 
     expect(html).toContain('<p data-inline-note="keep me" data-inline-x="y">');
     expect(html).toContain('data:image/png;base64');
+  });
+});
+
+describe('Property 1: Existing values are unchanged', () => {
+  const plain = '<p>Hi</p>';
+  const layout = '<section>Hi</section>';
+
+  it.each([
+    { responsive: undefined, html: plain, rendersLayout: false },
+    { responsive: undefined, html: layout, rendersLayout: true },
+    { responsive: null, html: plain, rendersLayout: false },
+    { responsive: null, html: layout, rendersLayout: true },
+    { responsive: true, html: plain, rendersLayout: true },
+    { responsive: true, html: layout, rendersLayout: true },
+    { responsive: false, html: plain, rendersLayout: false },
+    { responsive: false, html: layout, rendersLayout: false },
+    { responsive: {}, html: plain, rendersLayout: false },
+    { responsive: {}, html: layout, rendersLayout: true },
+    { responsive: { enabled: true }, html: plain, rendersLayout: true },
+    { responsive: { enabled: true }, html: layout, rendersLayout: true },
+    { responsive: { enabled: false }, html: plain, rendersLayout: false },
+    { responsive: { enabled: false }, html: layout, rendersLayout: false }
+  ])('responsive $responsive on $html renders layout: $rendersLayout', async ({ responsive, html, rendersLayout }) => {
+    const compiled = await compileEmailTemplate({ html, responsive: responsive as CompileEmailTemplateOptions['responsive'] });
+
+    if (rendersLayout) {
+      expect(compiled.html).toContain('data-ie-preserve-style');
+    } else {
+      expect(compiled.html).toBe(html);
+    }
+  });
+});
+
+describe("Property 2: 'default' is true", () => {
+  const layoutExamples = readdirSync(examplesDir, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.html') && !file.startsWith('out'))
+    .filter((file) => LAYOUT_TAG_PATTERN.test(readFileSync(join(examplesDir, file), 'utf8')));
+
+  it.each(layoutExamples)('compiles examples/%s the same with responsive \'default\' as with true', async (file) => {
+    const html = readFileSync(join(examplesDir, file), 'utf8');
+
+    const asDefault = await compileEmailTemplate({ html, responsive: 'default' });
+    const asTrue = await compileEmailTemplate({ html, responsive: true });
+
+    expect(asDefault.html).toBe(asTrue.html);
+  });
+});
+
+describe('Property 4: Unknown values reject', () => {
+  const circular: Record<string, unknown> = { enabled: 'yes' };
+  circular.self = circular;
+
+  it.each([
+    { responsive: 'true', named: "'true'" },
+    { responsive: 'Default', named: "'Default'" },
+    { responsive: 'mjml', named: "'mjml'" },
+    { responsive: '', named: "''" },
+    { responsive: 1, named: '1' },
+    { responsive: [], named: '[]' },
+    { responsive: { enabled: 'yes' }, named: "{ enabled: 'yes' }" },
+    { responsive: NaN, named: 'NaN' },
+    { responsive: 1n, named: '1n' },
+    { responsive: () => 'inky', named: 'a function' },
+    { responsive: new Date(0), named: 'a Date' },
+    { responsive: Object.create(Object.create(null)), named: 'a non-plain object' },
+    { responsive: { enabled: Symbol('s') }, named: '{ enabled: Symbol(s) }' },
+    { responsive: [1, 'a', null, {}], named: "[1, 'a', null, {}]" },
+    { responsive: circular, named: "{ enabled: 'yes', self: a circular reference }" }
+  ])('rejects responsive $named', async ({ responsive, named }) => {
+    const error = new Error(`Unknown responsive value ${named}. Use 'default', 'inky', true or false.`);
+
+    await expect(compileEmailTemplate({ html: '<p>Hi</p>', responsive: responsive as never })).rejects.toThrow(error);
+    await expect(inlineEmailHtml('<p>Hi</p>', '', { responsive: responsive as never })).rejects.toThrow(error);
+  });
+});
+
+describe("Property 5: The Transform sees the layout's output", () => {
+  const layoutHtml = '<section>Hi</section>';
+  const inkyHtml = '<row><columns>Hi</columns></row>';
+
+  it.each([
+    { responsive: 'default' as const, html: layoutHtml, layoutOutput: renderResponsiveLayout(layoutHtml) },
+    { responsive: 'inky' as const, html: inkyHtml, layoutOutput: new Inky().releaseTheKraken(inkyHtml) },
+    { responsive: false, html: layoutHtml, layoutOutput: layoutHtml }
+  ])('passes the transform what responsive $responsive produced', async ({ responsive, html, layoutOutput }) => {
+    const seen: string[] = [];
+    const transform = (source: string) => {
+      seen.push(source);
+      return source;
+    };
+
+    await compileEmailTemplate({ html, responsive, transform });
+    await inlineEmailHtml(html, '', { responsive, transform });
+
+    expect(seen).toEqual([layoutOutput, layoutOutput]);
   });
 });
 

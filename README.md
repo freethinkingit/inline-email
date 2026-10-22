@@ -18,6 +18,7 @@ inline-email turns HTML and CSS into email-safe templates you compile once and r
 ## When to use it
 
 - Use inline-email when you want server-side templates, compiled once and rendered per send, written in plain HTML and CSS with few dependencies.
+- Use [Inky](https://get.foundation/emails/docs/inky.html) for its layout markup; it runs inside inline-email through `responsive: 'inky'`, so you keep compile-once, render-per-send, the preview and the CLI.
 - Use [MJML](https://mjml.io/) when you want a full email markup language with its own component set and are happy with its toolchain.
 - Use [React Email](https://react.email/) when your templates are React components and your stack already renders React on the server.
 - Use [juice](https://github.com/Automattic/juice) on its own when you only need CSS inlining and already have templating.

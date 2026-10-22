@@ -95,29 +95,29 @@ Apply these rules:
    the HTML's <style> blocks, where 2.x left them in place; list each as a
    question. Use inlineEmailHtml, not compileEmailTemplate or renderEmail,
    which also read the HTML as a template (rule 7).
-3. 4.x has no built-in Inky step; Inky runs in a transform instead.
-   Remove --inky and -i from CLI calls; 4.x rejects both. Before you touch
-   Inky markup, ask whether I want to keep writing Inky or move to 4.x's
-   built-in layout tags. To keep Inky, keep the markup and add the stable
-   Inky 1 transform: npm install inky@1, add import { Inky } from 'inky',
-   set responsive: false, and pass
-   transform: (source) => new Inky(settings).releaseTheKraken(source),
-   where settings are the call's 2.x options.inky, if any. The CLI has no
-   transform option, so a CLI call that used --inky needs a short script.
-   To move to built-in tags, list each Inky tag, such as <row>, with its
-   nearest 4.x layout tag from rule 4, and ask before replacing it. Inky
-   tags named like layout tags, such as <container>, <columns>, <button>
-   and <spacer>, render as 4.x layout tags without a transform, not as
+3. 4.x runs Inky only when asked. Remove --inky and -i from CLI calls;
+   4.x rejects both. Before you touch Inky markup, ask whether I want to
+   keep writing Inky or move to 4.x's built-in layout tags. To keep Inky,
+   keep the markup, use inline-email 4.1.0 or later, npm install inky,
+   and set responsive: 'inky' in the library; a CLI call that used --inky
+   takes --responsive inky instead. Without inky installed, the library
+   call rejects and the CLI exits with an error. 'inky' runs Inky with
+   its defaults, so options.inky has no 4.x counterpart. To move to
+   built-in tags, list each Inky tag, such as <row>, with its nearest 4.x
+   layout tag from rule 4, and ask before replacing it. Inky tags named
+   like layout tags, such as <container>, <columns>, <button> and
+   <spacer>, render as 4.x layout tags without responsive: 'inky', not as
    Inky rendered them. Inky 2 is in beta; mention it only as an option I
-   can choose, never as a required step.
+   can choose, never as a required step. With Inky 2 installed, 'inky'
+   runs it instead and rejects HTML that holds a Handlebars partial, such
+   as {{> name}} or {{#> layout}}.
 4. 4.x turns tags named email, preview, container, section, columns,
    column, button, spacer, divider, image, hero-image, otp, alert, panel,
    brand or footer into a table layout with a <style> block of ie-* media
    rules, in the CLI and the library. Plain <section>, <footer> and
-   <button> are among them. In the library, add responsive: false where
-   such HTML must pass through unchanged. The CLI has no switch; for a CLI
-   call whose HTML holds such a tag, offer a short script that calls
-   inlineEmailHtml with responsive: false.
+   <button> are among them. Where such HTML must pass through unchanged,
+   add responsive: false in the library, or --responsive false to a CLI
+   call on 4.1.0 or later.
 5. Without --css, the 2.x CLI read each <link rel="stylesheet"> file,
    inlined its styles and removed the <link> tag; the 4.x CLI reads no
    linked files. Pass each linked stylesheet with --css, and remove its
@@ -817,7 +817,7 @@ This prints:
 2.x exported one function from `lib/render`: `render(html, css, options)`, returning a promise of the inlined HTML.
 4.x exports `inlineEmailHtml(html, css, options)` from `inline-email`, which also returns a promise of the inlined HTML.
 Its options are `responsive`, `transform` and `juice`.
-The `inky` option is gone, since Inky now runs through `transform`, and so is `juice.linkCss`; see [The --inky flag and Inky markup](#the---inky-flag-and-inky-markup) and [Linked stylesheets are no longer read](#linked-stylesheets-are-no-longer-read).
+The `inky` option is gone, since Inky now runs through `responsive: 'inky'` on 4.1.0 or later, and so is `juice.linkCss`; see [The --inky flag and Inky markup](#the---inky-flag-and-inky-markup) and [Linked stylesheets are no longer read](#linked-stylesheets-are-no-longer-read).
 
 Before:
 
@@ -844,7 +844,7 @@ This prints:
 
 Two defaults differ for a 2.x caller:
 
-- Called with no options, 2.x used `{ inky: { enabled: true }, juice: { linkCss: false, webResources: { images: false } } }` and so ran Inky over the HTML, a step 4.x leaves to a `transform`.
+- Called with no options, 2.x used `{ inky: { enabled: true }, juice: { linkCss: false, webResources: { images: false } } }` and so ran Inky over the HTML, a step 4.x runs only with `responsive: 'inky'`.
 - With no CSS and `linkCss` off, 2.x passed an empty stylesheet to juice and left `<style>` blocks alone, while 4.x inlines the HTML's `<style>` blocks when `css` is empty or left out.
 
 Before, this left the `<style>` block in place and the paragraph without a `style` attribute:
@@ -874,8 +874,8 @@ They also compile and render the HTML as a Handlebars template; see [Double brac
 ### The --inky flag and Inky markup
 
 2.x preprocessed the HTML with Inky 1.3.7 when the CLI got `--inky` or `-i`, and in the library by default.
-4.x has no built-in Inky step, and the CLI rejects both flags.
-Inky still works with 4.x as one flavor of layout markup, run through the `transform` option.
+4.x rejects both flags.
+Inky still works with inline-email 4.1.0 or later as one flavor of layout markup, chosen with `responsive: 'inky'` in the library and `--responsive inky` in the CLI.
 
 Before:
 
@@ -886,18 +886,18 @@ inline-email --inky inky.html
 After, the same command prints `Unknown option: --inky` and the usage text, then exits with status 1.
 `-i` prints `Unknown option: -i` the same way.
 
-Without a `transform`, Inky markup is not converted.
+Without `responsive: 'inky'`, Inky markup is not converted.
 A tag such as `<row>` is passed through as it is.
 Inky tags that share a name with a 4.x layout tag, such as `<container>`, `<columns>`, `<button>` and `<spacer>`, are rendered as 4.x layout tags instead, and the result is not what Inky produced.
 
 4.x compiles, renders and inlines the HTML whichever layout markup it is written in: Inky, 4.x's built-in layout tags, or plain HTML.
 Pick the flavor you want to write:
 
-- Keep writing Inky, and run stable Inky 1 in a `transform`.
-  Install it with `npm install inky@1`.
-  Set `responsive: false` so 4.x does not read Inky's tags as its own layout tags first.
-  2.x passed the library's `inky` options to `new Inky(options.inky)`, so pass the same settings to `new Inky()`.
-  The CLI has no `transform` option, so a CLI call that used `--inky` needs a short script instead.
+- Keep writing Inky, on inline-email 4.1.0 or later.
+  Install it with `npm install inky`, which installs stable Inky 1.
+  Set `responsive: 'inky'` in the library, or pass `--responsive inky` to the CLI, as `inline-email --responsive inky inky.html`.
+  Without Inky installed, `'inky'` makes the library call reject, and the CLI exit, with an error that names `npm install inky`.
+  `'inky'` runs Inky with its defaults, so the 2.x `inky` options are dropped.
 - Switch to 4.x's built-in layout tags, listed in [Responsive Layout Tags](docs/reference.md#responsive-layout-tags).
 
 Before, the 2.0.1 tests render `<row>thing</row>` with Inky on:
@@ -910,13 +910,8 @@ After:
 
 ```js
 import { inlineEmailHtml } from 'inline-email';
-import { Inky } from 'inky';
 
-const inky = new Inky();
-const html = await inlineEmailHtml('<row>thing</row>', '', {
-  responsive: false,
-  transform: (source) => inky.releaseTheKraken(source)
-});
+const html = await inlineEmailHtml('<row>thing</row>', '', { responsive: 'inky' });
 console.log(html);
 ```
 
@@ -928,30 +923,22 @@ Both give:
 
 The After example was run with Inky 1.5.0, the current Inky 1 release.
 On Node.js 24, Inky 1 also prints a `DEP0060` deprecation warning about `util._extend` to stderr, in 1.3.7 and 1.5.0 alike.
-`compileEmailTemplate` takes the same `responsive` and `transform` options.
+`compileEmailTemplate` takes the same `responsive` option.
 
 Inky's output uses class names such as `container`, `row` and `columns`, which get their look from Inky's CSS.
 Include Inky's CSS as well, or the layout is unstyled.
 
 Inky 2 is in beta, and you do not need it.
-If you choose to try it, its `transform` plugs into the same option:
-
-```js
-import { inlineEmailHtml } from 'inline-email';
-import inky from 'inky';
-
-const html = await inlineEmailHtml('<row>thing</row>', '', {
-  responsive: false,
-  transform: (source) => inky.transform(source)
-});
-console.log(html);
-```
-
-With `inky@2.0.0-beta.10`, this prints:
+If you choose to try it, install it with `npm install inky@beta`, and `responsive: 'inky'` runs Inky 2 instead of Inky 1.
+Inky 2 also reads Inky 1 markup, such as `<columns small="12" large="6">`.
+With `inky@2.0.0-beta.10`, the After example above prints:
 
 ```html
 <table role="presentation" class="row"><tbody><tr>thing</tr></tbody></table>
 ```
+
+Inky 2 escapes Handlebars partials, rewriting `{{> footer}}` as `{{&gt; footer}}`.
+So with Inky 2, `responsive: 'inky'` rejects HTML that contains a partial, such as `{{> name}}`, `{{~> name}}` or `{{#> layout}}`, with `Inky 2 escapes Handlebars partials ({{> name}}); Inky 1 keeps them. Use Inky 1 (npm install inky@1), or inline the partial.`
 
 Inky 2's `inky.migrate()` rewrites Inky 1 markup in Inky 2 syntax, such as `<columns small="12" large="6">` to `<column sm="12" lg="6">`.
 
@@ -1002,8 +989,11 @@ This prints:
 <footer>Bye</footer>
 ```
 
-The CLI has no switch to turn the layout off.
-The nearest alternative is `inlineEmailHtml` with `responsive: false` in a short script.
+In the CLI on 4.1.0 or later, `--responsive false` turns the layout off:
+
+```sh
+inline-email --responsive false footer.html
+```
 
 ### Linked stylesheets are no longer read
 

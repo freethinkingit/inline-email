@@ -1,8 +1,10 @@
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { main, parseArgs } from '../src/cli.ts';
+import { compileEmailTemplate } from '../src/index.ts';
+import type { CompileEmailTemplateOptions } from '../src/index.ts';
 import { AWKWARD_INPUTS, expectCleanOutcome } from './support/awkward-inputs.ts';
 import { captureConsole } from './support/console.ts';
 import { makeTempDir } from './support/temp-dir.ts';
@@ -251,5 +253,108 @@ describe('main', () => {
     await main([html, '--data', data]);
 
     expect(String(log.mock.calls[0][0])).toContain('<p>Hello Ada</p>');
+  });
+});
+
+describe('--responsive', () => {
+  const layoutHtml = '<container><row><columns>Hi</columns></row></container>';
+
+  async function runCli(html: string, args: string[]): Promise<string> {
+    const log = captureConsole('log');
+
+    await main([html, ...args]);
+
+    const output = String(log.mock.calls[0][0]);
+    log.mockRestore();
+    return output;
+  }
+
+  async function compileWithLibrary(html: string, responsive?: CompileEmailTemplateOptions['responsive']): Promise<string> {
+    const juice = { webResources: { images: false, relativeTo: dirname(resolve(html)) } };
+    return (await compileEmailTemplate({ html: readFileSync(html, 'utf8'), responsive, juice })).html;
+  }
+
+  afterEach(() => {
+    vi.doUnmock('inky');
+    vi.resetModules();
+  });
+
+  it.each([
+    { flag: 'default', responsive: 'default' as const },
+    { flag: 'inky', responsive: 'inky' as const },
+    { flag: 'false', responsive: false as const }
+  ])('compiles --responsive $flag as the library compiles responsive $responsive', async ({ flag, responsive }) => {
+    const html = writeTemplate(makeTempDir('inline-email-cli-'), layoutHtml);
+
+    expect(await runCli(html, ['--responsive', flag])).toBe(await compileWithLibrary(html, responsive));
+  });
+
+  it('gives each flavor its own output', async () => {
+    const html = writeTemplate(makeTempDir('inline-email-cli-'), layoutHtml);
+    const outputs = new Set([
+      await runCli(html, ['--responsive', 'default']),
+      await runCli(html, ['--responsive', 'inky']),
+      await runCli(html, ['--responsive', 'false'])
+    ]);
+
+    expect(outputs.size).toBe(3);
+  });
+
+  it('applies the built-in layout without the flag only when the HTML has layout tags', async () => {
+    const dir = makeTempDir('inline-email-cli-');
+    const layout = writeTemplate(dir, layoutHtml);
+    const layoutOutput = await runCli(layout, []);
+
+    expect(layoutOutput).toBe(await compileWithLibrary(layout, undefined));
+    expect(layoutOutput).toBe(await compileWithLibrary(layout, 'default'));
+
+    const plain = join(dir, 'plain.html');
+    writeFileSync(plain, '<p>Hi</p>', 'utf8');
+    const plainOutput = await runCli(plain, []);
+
+    expect(plainOutput).toBe(await compileWithLibrary(plain, undefined));
+    expect(plainOutput).not.toBe(await compileWithLibrary(plain, 'default'));
+  });
+
+  it('refuses --responsive without a value', async () => {
+    expect(() => parseArgs(['input.html', '--responsive'])).toThrow('--responsive requires a value.');
+    expect(() => parseArgs(['input.html', '--responsive', '--strict'])).toThrow('--responsive requires a value.');
+    await expect(main(['input.html', '--responsive'])).rejects.toThrow('--responsive requires a value.');
+  });
+
+  it.each(['Inky', 'true', 'responsive', 'inky2'])('refuses the unknown value %s, naming the accepted values', async (value) => {
+    const message = `Unknown --responsive value ${value}. Use default, inky or false.`;
+
+    expect(() => parseArgs(['input.html', '--responsive', value])).toThrow(message);
+    await expect(main(['input.html', '--responsive', value])).rejects.toThrow(message);
+  });
+
+  it('fails with the library error when Inky cannot be loaded', async () => {
+    vi.resetModules();
+    // Vitest hides the `code` of an error thrown by a mock factory, but not of one thrown from `then`.
+    vi.doMock('inky', () => ({
+      then() {
+        throw Object.assign(new Error("Cannot find package 'inky' imported from src/inky.ts"), { code: 'ERR_MODULE_NOT_FOUND' });
+      }
+    }));
+    const cli = await import('../src/cli.ts');
+    const dir = makeTempDir('inline-email-cli-');
+    const html = writeTemplate(dir, layoutHtml);
+    const out = join(dir, 'out.html');
+
+    await expect(cli.main([html, '--responsive', 'inky', '--out', out])).rejects.toThrow(
+      "responsive: 'inky' needs the inky package. Install it with npm install inky."
+    );
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('lists the flag and its values in the help text', async () => {
+    const log = captureConsole('log');
+
+    await main(['--help']);
+
+    expect(String(log.mock.calls[0][0])).toContain(
+      '  --responsive <flavor>  Layout flavor: default, inky or false. Without it, layout tags in the HTML get the built-in layout.'
+    );
   });
 });
