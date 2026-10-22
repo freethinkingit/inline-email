@@ -252,4 +252,23 @@ describe('inlineEmailHtml', () => {
 
     expect(html).toContain('<p style="color: red;">Hi</p>');
   });
+
+  it('keeps the @media rules of the given CSS in a <style> block in the head', async () => {
+    const html = await inlineEmailHtml(
+      '<html><head></head><body><p class="a">Hi</p></body></html>',
+      '.a { color: red; } @media (max-width: 600px) { .a { color: blue; } }'
+    );
+
+    expect(html).toContain('<p class="a" style="color: red;">Hi</p>');
+    expect(html).toMatch(/<head><style>[^<]*@media \(max-width: 600px\)[^<]*color: blue/);
+  });
+
+  it('keeps the @media rules of both the given CSS and the juice extraCss option', async () => {
+    const html = await inlineEmailHtml('<p class="a">Hi</p>', '@media (max-width: 600px) { .a { color: blue; } }', {
+      juice: { extraCss: '@media print { .a { display: none; } }' }
+    });
+
+    expect(html).toContain('@media (max-width: 600px)');
+    expect(html).toContain('@media print');
+  });
 });

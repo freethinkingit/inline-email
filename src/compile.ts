@@ -139,7 +139,9 @@ export async function inlineEmailHtml(
   const resourceHtml = await inlineRequestedResources(transformedHtml, juiceOptions.webResources);
 
   if (css?.trim()) {
-    return juice.inlineContent(resourceHtml, css, juiceOptions);
+    // inlineContent drops whatever it cannot inline, such as @media rules, unless the CSS is also given as extraCss.
+    const extraCss = [juiceOptions.extraCss, css].filter(Boolean).join('\n');
+    return juice.inlineContent(resourceHtml, css, { ...juiceOptions, extraCss });
   }
 
   return juice(resourceHtml, juiceOptions);

@@ -1,6 +1,6 @@
 {
   "name": "inline-email",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Compile HTML and CSS into email-safe templates and render them with Handlebars per send. Node library and CLI.",
   "type": "module",
   "main": "dist/index.js",
