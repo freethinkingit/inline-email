@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'v*.*.*'
-      - 'v*.*.*-*'
 
 permissions:
   contents: write
@@ -25,11 +24,11 @@ jobs:
           package-manager-cache: false
 
       - run: npm ci
+      - name: Verify tag matches package version
+        run: node -e "const pkg = require('./package.json'); const expected = 'v' + pkg.version; if (process.env.GITHUB_REF_NAME !== expected) { throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + expected); }"
       - run: npm run audit
       - run: npm run build
       - run: npm test
-      - name: Verify tag matches package version
-        run: node -e "const pkg = require('./package.json'); const expected = 'v' + pkg.version; if (process.env.GITHUB_REF_NAME !== expected) { throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + expected); }"
       - name: Resolve npm dist tag
         run: |
           if node -p "require('./package.json').version.includes('-')" | grep true; then
