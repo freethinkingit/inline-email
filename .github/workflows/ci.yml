@@ -7,6 +7,9 @@ on:
       - dev
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -25,26 +28,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high --omit=dev
+      - run: npm run audit
+      - run: npm run lint
       - run: npm run build
       - run: npm test
       - run: npm run examples
-      - name: Install the packed package and run it
-        run: |
-          npm pack --pack-destination "$RUNNER_TEMP"
-          mkdir "$RUNNER_TEMP/smoke"
-          cd "$RUNNER_TEMP/smoke"
-          npm init -y
-          npm install --no-audit --no-fund "$RUNNER_TEMP"/inline-email-*.tgz
-          node --input-type=module -e "
-            import { compileEmailTemplate } from 'inline-email';
-            const compiled = await compileEmailTemplate({ subject: 'Hi {{name}}', html: '<p class=\"m\">Hi {{name}}</p>', css: '.m { color: #246bfe; }' });
-            const { html } = compiled.render({ data: { name: 'Ada' } });
-            if (!html.includes('style=\"color: #246bfe;\"')) throw new Error(html);
-          "
-          printf '<p>Hello {{name}}</p>' > email.html
-          printf '{"name":"Ada"}' > data.json
-          npx --no-install inline-email email.html --data data.json --strict | grep -q 'Hello Ada'
+      - run: npm run test:package
 
   visual:
     runs-on: macos-latest

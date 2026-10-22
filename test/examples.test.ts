@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { compileEmailTemplate } from '../src/index.ts';
+import { expectNoPlaceholdersOrLayoutTags } from './support/leaks.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -92,9 +93,9 @@ const examples = [
 
 describe('example templates', () => {
   it.each([
-    ['html', false],
+    ['default', false],
     ['strict', true]
-  ])('compile and render in %s mode without leaking placeholders or layout tags', async (_mode, strict) => {
+  ])('compile and render in %s mode as tables, with no placeholders or layout tags left', async (_mode, strict) => {
     for (const example of examples) {
       const html = readFileSync(example.file, 'utf8');
       const compiled = await compileEmailTemplate({
@@ -109,8 +110,7 @@ describe('example templates', () => {
       });
 
       expect(email.html, example.file).toContain('<table');
-      expect(email.html, example.file).not.toMatch(/{{[#/]?[\w.:-]+}}/);
-      expect(email.html, example.file).not.toMatch(/<\/?(email|container|section|columns|column|button|spacer|divider|hero-image|alert|panel|brand|footer)\b/i);
+      expectNoPlaceholdersOrLayoutTags(email.html, example.file);
     }
   });
 });

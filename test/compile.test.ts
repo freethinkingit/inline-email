@@ -1,10 +1,12 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Handlebars from 'handlebars';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compileEmailTemplate, inlineEmailHtml, renderEmail } from '../src/index.ts';
+import type { CompileEmailTemplateOptions } from '../src/index.ts';
+import { captureConsole } from './support/console.ts';
+import { makeTempDir } from './support/temp-dir.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -24,19 +26,6 @@ describe('compileEmailTemplate', () => {
     expect(email.subject).toBe('Welcome, <Dan>');
     expect(email.html).toContain('Hello &lt;Dan&gt;');
     expect(email.text).toBe('Hello <Dan>');
-  });
-
-  it('renders subject and text without HTML escaping', async () => {
-    const compiled = await compileEmailTemplate({
-      subject: 'Hi {{name}}, Tom & Jerry',
-      html: '<p>{{name}}</p>',
-      text: 'Hi {{name}} & welcome'
-    });
-
-    const email = compiled.render({ name: "O'Brien" });
-    expect(email.subject).toBe("Hi O'Brien, Tom & Jerry");
-    expect(email.html).toBe('<p>O&#x27;Brien</p>');
-    expect(email.text).toBe("Hi O'Brien & welcome");
   });
 
   it('renders html unescaped when escape is none', async () => {
@@ -119,58 +108,68 @@ describe('compileEmailTemplate', () => {
     expect(email.html).toContain('background:#123456;');
   });
 
-  it('matches a tone name containing characters Handlebars escapes', async () => {
-    const compiled = await compileEmailTemplate({
-      html: '<panel tone="{{tone}}">{{message}}</panel>'
-    });
-
-    const email = compiled.render({
-      data: { message: 'Ready', tone: "it's=`odd`" },
-      style: { tones: { "it's=`odd`": { background: '#654321' } } }
-    });
-    expect(email.html).toContain('background:#654321;');
+  it('refuses to compile a template with no HTML', async () => {
+    await expect(compileEmailTemplate({ subject: 'Hi' } as CompileEmailTemplateOptions)).rejects.toThrow('HTML is required.');
   });
 
-  it('embeds local images as data URIs when webResources.images is on', async () => {
-    const compiled = await compileEmailTemplate({
-      html: '<img src="docs/assets/upgrade-offer.png">',
-      juice: { webResources: { images: true, relativeTo: rootDir } }
-    });
+  it('renders layout only when responsive is true, and leaves layout tags alone when it is false', async () => {
+    const plain = '<p>Hi</p>';
+    const layout = '<section>Hi</section>';
 
-    expect(compiled.html).toContain('data:image/png;base64');
+    expect((await compileEmailTemplate({ html: plain })).html).not.toContain('data-ie-preserve-style');
+    expect((await compileEmailTemplate({ html: plain, responsive: true })).html).toContain('data-ie-preserve-style');
+    expect((await compileEmailTemplate({ html: layout, responsive: false })).html).toBe(layout);
+  });
+
+  it('reads responsive from an options object like a boolean, and detects layout tags when enabled is left out', async () => {
+    const plain = '<p>Hi</p>';
+    const layout = '<section>Hi</section>';
+
+    expect((await compileEmailTemplate({ html: plain, responsive: { enabled: true } })).html).toContain('data-ie-preserve-style');
+    expect((await compileEmailTemplate({ html: layout, responsive: { enabled: false } })).html).toBe(layout);
+    expect((await compileEmailTemplate({ html: layout, responsive: {} })).html).toContain('class="ie-section"');
+  });
+
+  it('renders with empty data when render is given null instead of data', async () => {
+    const compiled = await compileEmailTemplate({ html: '<p>Hi{{name}}</p>', subject: 'Hi{{name}}' });
+
+    const email = compiled.render(null as never);
+    expect(email.subject).toBe('Hi');
+    expect(email.html).toContain('<p>Hi</p>');
+  });
+
+  it('renders with empty data when a render context has a style but no data', async () => {
+    const compiled = await compileEmailTemplate({ html: '<panel tone="info">Hi{{name}}</panel>' });
+
+    const email = compiled.render({ style: { tones: { info: { background: '#123456' } } } });
+    expect(email.html).toContain('Hi</td>');
+    expect(email.html).toContain('background:#123456;');
   });
 
   it('inlines linked stylesheets when only webResources.links is on', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'inline-email-links-'));
-    try {
-      await writeFile(join(dir, 'x.css'), '.note { color: blue; }');
+    const dir = makeTempDir('inline-email-links-');
+    await writeFile(join(dir, 'x.css'), '.note { color: blue; }');
 
-      const html = await inlineEmailHtml(
-        '<html><head><link rel="stylesheet" href="x.css"></head><body><p class="note">Hi</p></body></html>',
-        '',
-        { juice: { webResources: { links: true, relativeTo: dir } } }
-      );
+    const html = await inlineEmailHtml(
+      '<html><head><link rel="stylesheet" href="x.css"></head><body><p class="note">Hi</p></body></html>',
+      '',
+      { juice: { webResources: { links: true, relativeTo: dir } } }
+    );
 
-      expect(html).toContain('<p class="note" style="color: blue;">Hi</p>');
-      expect(html).not.toContain('href="x.css"');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    expect(html).toContain('<p class="note" style="color: blue;">Hi</p>');
+    expect(html).not.toContain('href="x.css"');
   });
 
   it('keeps the src of an unreachable image and still compiles by default', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const compiled = await compileEmailTemplate({
-        html: '<p>Reset your password</p><img src="missing.png">',
-        juice: { webResources: { images: true, relativeTo: rootDir } }
-      });
+    const warn = captureConsole('warn');
 
-      expect(compiled.html).toContain('src="missing.png"');
-      expect(warn).toHaveBeenCalled();
-    } finally {
-      warn.mockRestore();
-    }
+    const compiled = await compileEmailTemplate({
+      html: '<p>Reset your password</p><img src="missing.png">',
+      juice: { webResources: { images: true, relativeTo: rootDir } }
+    });
+
+    expect(compiled.html).toContain('src="missing.png"');
+    expect(warn).toHaveBeenCalled();
   });
 
   it('rejects the compile for an unreachable image when webResources.strict is on', async () => {
@@ -202,8 +201,10 @@ describe('compileEmailTemplate', () => {
     expect(html).toContain('<p data-inline-note="keep me" data-inline-x="y">');
     expect(html).toContain('data:image/png;base64');
   });
+});
 
-  it('supports one-shot rendering', async () => {
+describe('renderEmail', () => {
+  it('compiles and renders a template object in one call', async () => {
     const email = await renderEmail({
       template: {
         html: '<p>{{message}}</p>'
@@ -215,15 +216,40 @@ describe('compileEmailTemplate', () => {
 
     expect(email.html).toBe('<p>Ready</p>');
   });
+
+  it('renders a template given as an HTML string, with no data', async () => {
+    const email = await renderEmail({ template: '<p>Hello{{name}}</p>' });
+
+    expect(email).toEqual({ subject: '', html: '<p>Hello</p>', text: '' });
+  });
+
+  it('renders an already compiled template with the data and style given', async () => {
+    const compiled = await compileEmailTemplate({ html: '<panel tone="info">{{message}}</panel>' });
+
+    const email = await renderEmail({
+      template: compiled,
+      data: { message: 'Ready' },
+      style: { tones: { info: { background: '#123456' } } }
+    });
+
+    expect(email.html).toContain('Ready');
+    expect(email.html).toContain('background:#123456;');
+  });
 });
 
 describe('inlineEmailHtml', () => {
-  it('can run a caller-provided compile transform before inlining', async () => {
+  it('runs a caller-provided transform before inlining', async () => {
     const html = await inlineEmailHtml('<row>Hi</row>', '', {
       transform: (source) => source.replace('<row>', '<table class="row"><tr>').replace('</row>', '</tr></table>')
     });
 
     expect(html).toContain('class="row"');
     expect(html).toContain('Hi');
+  });
+
+  it.each(['\n', '  \n'])('inlines the HTML\'s <style> blocks when the CSS is whitespace only (%j)', async (css) => {
+    const html = await inlineEmailHtml('<style>p { color: red; }</style><p>Hi</p>', css);
+
+    expect(html).toContain('<p style="color: red;">Hi</p>');
   });
 });

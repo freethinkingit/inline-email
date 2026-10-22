@@ -1,0 +1,67 @@
+name: Report a bug
+description: inline-email produced the wrong output, threw an unexpected error or did not do what its documentation says.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: For a security vulnerability, do not file an issue; follow the [security policy](https://github.com/freethinkingit/inline-email/security/policy) instead.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and found nothing that covers this.
+          required: true
+        - label: I am on the latest version of inline-email.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: inline-email version
+      description: "The version you use, as `npm ls inline-email` shows it, or `npm ls -g inline-email` for a global install."
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: As `node --version` shows it.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: dropdown
+    id: usage
+    attributes:
+      label: How you use it
+      options:
+        - Library
+        - CLI
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: A minimal template, CSS and data, or the CLI command, that reproduces the bug. For rendering bugs, include the source template before compilation and the relevant generated HTML after compilation.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: The output or error you got.
+      render: text
+    validations:
+      required: true

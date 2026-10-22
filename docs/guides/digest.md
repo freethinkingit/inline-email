@@ -155,7 +155,9 @@ const template = await compileEmailTemplate({
   handlebars: { helpers: { formatNumber, position } }
 });
 
-console.log(JSON.stringify(template.render({ data }), null, 2));
+const email = template.render({ data });
+
+console.log(JSON.stringify(email, null, 2));
 ```
 
 The script compiles once, with the two helpers under `handlebars.helpers`, then renders with the data. Each panel takes its tone from the data, like `tone="{{tone}}"`, and gets that tone's built-in colours. Passing `style.tones` to `render({ data, style })` overrides them, even one of `background`, `border` or `text` at a time.

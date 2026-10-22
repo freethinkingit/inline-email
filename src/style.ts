@@ -3,26 +3,36 @@ import type { EmailStyle, EmailStyleVariant } from './types.js';
 
 type StyleTarget = 'container' | 'content';
 
+const CONTAINER_PATTERN =
+  /(<table\b(?=[^>]*\bdata-ie-component="([^"]+)")(?=[^>]*\bdata-ie-variant="([^"]+)")[^>]*\bstyle=")([^"]*)(")/g;
+const CONTENT_PATTERN =
+  /(<td\b(?=[^>]*\bdata-ie-component-content="([^"]+)")(?=[^>]*\bdata-ie-variant="([^"]+)")[^>]*\bstyle=")([^"]*)(")/g;
+
+/**
+ * Restyles the alert and panel components in rendered HTML with the colours of their tone.
+ *
+ * Each component's tone is looked up in the built-in palette and in `style.tones`, the caller's
+ * colours winning over the built-in ones. A component whose tone is in neither keeps its style.
+ *
+ * @param html - The rendered email HTML.
+ * @param style - The caller's colours for each tone.
+ * @returns The HTML with each styled component's `style` attribute rewritten.
+ */
 export function applyEmailStyle(html: string, style: EmailStyle = {}): string {
-  return html
-    .replace(
-      /(<table\b(?=[^>]*\bdata-ie-component="([^"]+)")(?=[^>]*\bdata-ie-variant="([^"]+)")[^>]*\bstyle=")([^"]*)(")/g,
-      (match: string, prefix: string, component: string, variant: string, fallbackStyle: string, suffix: string) => {
-        const declaration = resolveVariantStyle(style, decodeHtmlAttribute(variant));
-        const nextStyle = renderComponentStyle(decodeHtmlAttribute(component), 'container', declaration, fallbackStyle);
+  const htmlWithContainersStyled = restyleComponents(html, CONTAINER_PATTERN, 'container', style);
+  return restyleComponents(htmlWithContainersStyled, CONTENT_PATTERN, 'content', style);
+}
 
-        return nextStyle ? `${prefix}${nextStyle}${suffix}` : match;
-      }
-    )
-    .replace(
-      /(<td\b(?=[^>]*\bdata-ie-component-content="([^"]+)")(?=[^>]*\bdata-ie-variant="([^"]+)")[^>]*\bstyle=")([^"]*)(")/g,
-      (match: string, prefix: string, component: string, variant: string, fallbackStyle: string, suffix: string) => {
-        const declaration = resolveVariantStyle(style, decodeHtmlAttribute(variant));
-        const nextStyle = renderComponentStyle(decodeHtmlAttribute(component), 'content', declaration, fallbackStyle);
+function restyleComponents(html: string, pattern: RegExp, target: StyleTarget, style: EmailStyle): string {
+  return html.replace(
+    pattern,
+    (match: string, prefix: string, component: string, variant: string, fallbackStyle: string, suffix: string) => {
+      const declaration = resolveVariantStyle(style, decodeHtmlAttribute(variant));
+      const nextStyle = renderComponentStyle(decodeHtmlAttribute(component), target, declaration, fallbackStyle);
 
-        return nextStyle ? `${prefix}${nextStyle}${suffix}` : match;
-      }
-    );
+      return nextStyle ? `${prefix}${nextStyle}${suffix}` : match;
+    }
+  );
 }
 
 // A tone that comes from data is still the literal {{tone}} when the layout picks colours at compile time,
@@ -31,7 +41,11 @@ function resolveVariantStyle(style: EmailStyle, variant: string): EmailStyleVari
   const builtIn = Object.hasOwn(BUILT_IN_TONES, variant) ? BUILT_IN_TONES[variant] : undefined;
   const override = style.tones?.[variant];
 
-  return builtIn || override ? { ...builtIn, ...override } : undefined;
+  if (!builtIn && !override) {
+    return undefined;
+  }
+
+  return { ...builtIn, ...override };
 }
 
 function renderComponentStyle(
@@ -61,11 +75,17 @@ function renderContainerStyle(
   const border = declaration.border;
 
   if (component === 'alert' && (background || accent)) {
-    return `background:${escapeStyleValue(background ?? readStyleValue(fallbackStyle, 'background', '#fff7e8'))};border-left:4px solid ${escapeStyleValue(accent ?? '#f2a900')};`;
+    const alertBackground = background ?? readStyleValue(fallbackStyle, 'background', '#fff7e8');
+    const accentColour = accent ?? '#f2a900';
+
+    return `background:${escapeStyleValue(alertBackground)};border-left:4px solid ${escapeStyleValue(accentColour)};`;
   }
 
   if (background || border) {
-    return `background:${escapeStyleValue(background ?? readStyleValue(fallbackStyle, 'background', '#f7f9fc'))};border:1px solid ${escapeStyleValue(border ?? '#d8dee8')};border-radius:8px;`;
+    const borderedBackground = background ?? readStyleValue(fallbackStyle, 'background', '#f7f9fc');
+    const borderColour = border ?? '#d8dee8';
+
+    return `background:${escapeStyleValue(borderedBackground)};border:1px solid ${escapeStyleValue(borderColour)};border-radius:8px;`;
   }
 
   return fallbackStyle;
@@ -88,7 +108,13 @@ function renderContentStyle(
 
 function readStyleValue(style: string, property: string, fallback: string): string {
   const pattern = new RegExp(`${property}\\s*:\\s*([^;]+)`, 'i');
-  return style.match(pattern)?.[1]?.trim() ?? fallback;
+  const found = style.match(pattern);
+
+  if (found === null) {
+    return fallback;
+  }
+
+  return found[1].trim();
 }
 
 function escapeStyleValue(value: string): string {

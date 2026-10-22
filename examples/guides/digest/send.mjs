@@ -17,4 +17,6 @@ const template = await compileEmailTemplate({
   handlebars: { helpers: { formatNumber, position } }
 });
 
-console.log(JSON.stringify(template.render({ data }), null, 2));
+const email = template.render({ data });
+
+console.log(JSON.stringify(email, null, 2));

@@ -1,0 +1,56 @@
+name: Request a feature
+description: Propose a new feature or a change to how inline-email behaves.
+labels: ["enhancement", "triage"]
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the existing issues and found nothing that covers this.
+          required: true
+        - label: I checked the [documentation](https://github.com/freethinkingit/inline-email/tree/master/docs) and the feature is not already there.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: inline-email version
+      description: "The version you use, as `npm ls inline-email` shows it, or `npm ls -g inline-email` for a global install."
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: As `node --version` shows it.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: How inline-email should behave instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Example
+      description: A minimal template, CSS and data, or the CLI command, that shows the case.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other ways you tried or considered, and why they fall short.
+    validations:
+      required: false
