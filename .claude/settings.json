@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "github@anthropic-plugin-directory": true
+  }
+}

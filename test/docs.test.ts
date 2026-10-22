@@ -8,6 +8,7 @@ const guidesDir = join(rootDir, 'docs', 'guides');
 const readmePath = join(rootDir, 'README.md');
 const referencePath = join(rootDir, 'docs', 'reference.md');
 const llmsPath = join(rootDir, 'llms.txt');
+const migrationPath = join(rootDir, 'MIGRATION.md');
 const cliPath = join(rootDir, 'src', 'cli.ts');
 const packagePath = join(rootDir, 'package.json');
 const guidePaths = readdirSync(guidesDir)
@@ -472,7 +473,7 @@ describe('Guides show real files', () => {
 });
 
 describe('Documentation links resolve and pages keep their shape', () => {
-  it.each([readmePath, ...guidePaths, referencePath, llmsPath].map((path) => [relative(rootDir, path), path]))(
+  it.each([readmePath, ...guidePaths, referencePath, llmsPath, migrationPath].map((path) => [relative(rootDir, path), path]))(
     'every relative link in %s resolves',
     (_name, path) => {
       expect(checkLinks(path, read(path))).toEqual([]);
