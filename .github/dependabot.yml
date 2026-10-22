@@ -5,10 +5,20 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # @vitest/coverage-v8 requires the exact vitest version, so the two only install together.
+      vitest:
+        patterns:
+          - vitest
+          - "@vitest/*"
       npm-minor-and-patch:
         update-types:
           - minor
           - patch
+    ignore:
+      # The Node types track the oldest supported Node, not the newest.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
